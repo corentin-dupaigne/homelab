@@ -1,13 +1,18 @@
 ---
 - name: Add metallb helm repo
-  kubernetes.core.helm_repository:
-    name: metallb
-    repo_url: https://metallb.github.io/metallb
+  command: helm repo add --force-update metallb https://metallb.github.io/metallb
+  changed_when: false
 
-- name: Install metallb helm chart
-  kubernetes.core.helm:
-    name: metallb
-    chart_ref: metallb/metallb
-    release_namespace: metallb-system
-    create_namespace: true
-    wait: true
+- name: Check if metallb release exists
+  command: helm status metallb -n metallb-system
+  register: metallb_status
+  failed_when: false
+  changed_when: false
+
+- name: Install metallb
+  command: >-
+    helm upgrade --install metallb metallb/metallb
+    --namespace metallb-system
+    --create-namespace
+    --wait
+  when: metallb_status.rc != 0
