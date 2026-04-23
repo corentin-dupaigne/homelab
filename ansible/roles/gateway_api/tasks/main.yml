@@ -1,0 +1,9 @@
+---
+- name: Install Envoy Gateway helm chart
+  kubernetes.core.helm:
+    name: eg
+    chart_ref: oci://docker.io/envoyproxy/gateway-helm
+    chart_version: v1.7.2
+    release_namespace: envoy-gateway-system
+    create_namespace: true
+    wait: true

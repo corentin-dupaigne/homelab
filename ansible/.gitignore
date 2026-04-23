@@ -1,0 +1,25 @@
+# Ansible
+*.retry
+collections/
+roles/galaxy/
+
+# Vault
+.vault_pass*
+vault_password*
+
+# Kubernetes
+*.kubeconfig
+kubeconfig
+.kube/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Editors / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
