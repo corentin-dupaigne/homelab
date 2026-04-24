@@ -6,5 +6,4 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   roles:
     - k3s
-    - metallb
-    - gateway_api
+    - argocd

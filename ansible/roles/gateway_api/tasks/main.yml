@@ -1,8 +1,0 @@
----
-- name: Install Envoy Gateway
-  command: >-
-    helm upgrade --install eg oci://docker.io/envoyproxy/gateway-helm
-    --version v1.7.2
-    --namespace envoy-gateway-system
-    --create-namespace
-    --wait

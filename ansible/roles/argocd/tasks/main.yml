@@ -1,0 +1,22 @@
+---
+- name: Add argo helm repo
+  command: helm repo add --force-update argo https://argoproj.github.io/argo-helm
+  changed_when: false
+
+- name: Install Argo CD
+  command: >-
+    helm upgrade --install argocd argo/argo-cd
+    --namespace argocd
+    --create-namespace
+    --wait
+
+- name: Copy Argo CD root Application
+  copy:
+    src: "{{ playbook_dir }}/../argo/bootstrap/root-app.yaml"
+    dest: /etc/rancher/k3s/argo-root-app.yaml
+    mode: "0600"
+
+- name: Apply Argo CD root Application
+  command: kubectl apply -f /etc/rancher/k3s/argo-root-app.yaml
+  register: root_app_apply
+  changed_when: "'configured' in root_app_apply.stdout or 'created' in root_app_apply.stdout"
