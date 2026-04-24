@@ -3,16 +3,20 @@
   command: helm repo add --force-update metallb https://metallb.github.io/metallb
   changed_when: false
 
-- name: Check if metallb release exists
-  command: helm status metallb -n metallb-system
-  register: metallb_status
-  failed_when: false
-  changed_when: false
-
 - name: Install metallb
   command: >-
     helm upgrade --install metallb metallb/metallb
     --namespace metallb-system
     --create-namespace
     --wait
-  when: metallb_status.rc != 0
+
+- name: Render metallb IPAddressPool and L2Advertisement
+  template:
+    src: metallb-config.yaml.j2
+    dest: /etc/rancher/k3s/metallb-config.yaml
+    mode: "0600"
+
+- name: Apply metallb IPAddressPool and L2Advertisement
+  command: kubectl apply -f /etc/rancher/k3s/metallb-config.yaml
+  register: metallb_apply
+  changed_when: "'configured' in metallb_apply.stdout or 'created' in metallb_apply.stdout"

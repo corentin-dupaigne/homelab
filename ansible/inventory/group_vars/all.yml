@@ -1,0 +1,9 @@
+---
+# Public IP of the VPS. Single source of truth for both the SSH target
+# (ansible_host in hosts.yml) and the MetalLB pool.
+vps_public_ip: 54.38.190.139
+
+# IPs MetalLB advertises as LoadBalancer externals. Override with a range
+# or a failover IP if you stop using the host's primary IP.
+metallb_address_pool:
+  - "{{ vps_public_ip }}/32"

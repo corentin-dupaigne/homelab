@@ -1,10 +1,4 @@
 ---
-- name: Check if envoy gateway release exists
-  command: helm status eg -n envoy-gateway-system
-  register: eg_status
-  failed_when: false
-  changed_when: false
-
 - name: Install Envoy Gateway
   command: >-
     helm upgrade --install eg oci://docker.io/envoyproxy/gateway-helm
@@ -12,4 +6,3 @@
     --namespace envoy-gateway-system
     --create-namespace
     --wait
-  when: eg_status.rc != 0
