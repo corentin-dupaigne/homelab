@@ -4,6 +4,10 @@
   args:
     creates: /usr/local/bin/k3s
 
+- name: Install Gateway API CRDs
+  command: kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/{{ gateway_api_version }}/standard-install.yaml
+  changed_when: false
+
 - name: Install helm
   shell: curl -sfL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
   args:
