@@ -3,6 +3,8 @@ kind: Gateway
 metadata:
   name: default-gateway
   namespace: kube-system
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   gatewayClassName: traefik
   listeners:
@@ -12,3 +14,16 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    # Add one listener per subdomain — cert-manager auto-creates the certificate for each
+    # - name: myapp-https
+    #   hostname: myapp.corentindupaigne.com
+    #   protocol: HTTPS
+    #   port: 443
+    #   tls:
+    #     mode: Terminate
+    #     certificateRefs:
+    #       - name: myapp-tls
+    #         kind: Secret
+    #   allowedRoutes:
+    #     namespaces:
+    #       from: All
