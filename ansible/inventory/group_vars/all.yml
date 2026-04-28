@@ -2,3 +2,4 @@
 # Public IP of the VPS. Single source of truth for both the SSH target
 # (ansible_host in hosts.yml) and anything else that needs it.
 vps_public_ip: 54.38.190.139
+gateway_api_version: v1.2.1

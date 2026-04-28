@@ -1,0 +1,56 @@
+---
+- name: Install ufw
+  apt:
+    name: ufw
+    state: present
+
+- name: Set ufw default forward policy to accept
+  lineinfile:
+    path: /etc/default/ufw
+    regexp: "^DEFAULT_FORWARD_POLICY="
+    line: 'DEFAULT_FORWARD_POLICY="ACCEPT"'
+
+- name: Set default incoming policy to deny
+  ufw:
+    default: deny
+    direction: incoming
+
+- name: Allow SSH
+  ufw:
+    rule: allow
+    name: ssh
+
+- name: Allow HTTP
+  ufw:
+    rule: allow
+    name: "http"
+
+- name: Allow HTTPS
+  ufw:
+    rule: allow
+    name: https
+
+- name: Enable ufw
+  ufw:
+    state: enabled
+
+- name: Disable SSH password authentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?PasswordAuthentication"
+    line: "PasswordAuthentication no"
+  notify: Restart sshd
+
+- name: Disable SSH root login
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?PermitRootLogin"
+    line: "PermitRootLogin no"
+  notify: Restart sshd
+
+- name: Set SSH max auth tries
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?MaxAuthTries"
+    line: "MaxAuthTries 3"
+  notify: Restart sshd
