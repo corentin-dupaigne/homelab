@@ -18,17 +18,20 @@
 - name: Allow SSH
   ufw:
     rule: allow
-    name: ssh
+    port: "22"
+    proto: tcp
 
 - name: Allow HTTP
   ufw:
     rule: allow
-    name: "http"
+    port: "80"
+    proto: tcp
 
 - name: Allow HTTPS
   ufw:
     rule: allow
-    name: https
+    port: "443"
+    proto: tcp
 
 - name: Enable ufw
   ufw:
