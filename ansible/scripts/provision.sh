@@ -3,7 +3,6 @@ set -e
 
 VM_NAME=homelab-test
 SNAPSHOT_NAME=clean
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 if [ "${1}" = "clean" ]; then
     echo "Deleting VM..."
@@ -41,8 +40,4 @@ until ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "ubuntu@$VM_IP" exit 2
     sleep 2
 done
 
-echo "Running Ansible playbook..."
-ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook \
-    -i "$REPO_ROOT/ansible/inventory/hosts.yml" \
-    -e "vps_public_ip=$VM_IP" \
-    "$REPO_ROOT/ansible/playbook.yml"
+echo "VM ready at $VM_IP"
