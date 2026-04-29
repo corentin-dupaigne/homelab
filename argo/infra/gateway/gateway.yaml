@@ -27,3 +27,15 @@ spec:
     #   allowedRoutes:
     #     namespaces:
     #       from: All
+    - name: argocd-https
+      hostname: argocd.corentindupaigne.com
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: argocd-tls
+            kind: Secret
+      allowedRoutes:
+        namespaces:
+          from: All
