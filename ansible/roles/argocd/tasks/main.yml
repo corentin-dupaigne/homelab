@@ -8,6 +8,7 @@
     helm upgrade --install argocd argo/argo-cd
     --namespace argocd
     --create-namespace
+    --set 'configs.params.server\.insecure=true'
     --wait
 
 - name: Copy Argo CD root Application
