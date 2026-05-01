@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/corentin-dupaigne/homelab
     targetRevision: main
-    path: argo/infra/argocd
+    path: kubernetes/manifests/infra/argocd
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

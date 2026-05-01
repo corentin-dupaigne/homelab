@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/corentin-dupaigne/homelab
     targetRevision: main
-    path: argo/infra/cert-manager
+    path: kubernetes/manifests/infra/cert-manager
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager

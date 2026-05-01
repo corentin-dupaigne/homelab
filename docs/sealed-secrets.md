@@ -31,7 +31,7 @@ kubectl create secret generic my-secret \
 ```bash
 kubeseal --cert sealed-secrets/pub-cert.pem --format yaml \
   < /tmp/secret.yaml \
-  > argo/apps/my-app/sealed-secret.yaml
+  > kubernetes/manifests/workloads/my-app/sealed-secret.yaml
 ```
 
 3. Commit `sealed-secret.yaml` and delete `/tmp/secret.yaml`.

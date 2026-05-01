@@ -13,7 +13,7 @@
 
 - name: Copy Argo CD root Application
   copy:
-    src: "{{ playbook_dir }}/../argo/bootstrap/root-app.yaml"
+    src: "{{ playbook_dir }}/../kubernetes/bootstrap/root-app.yaml"
     dest: /etc/rancher/k3s/argo-root-app.yaml
     mode: "0600"
 
