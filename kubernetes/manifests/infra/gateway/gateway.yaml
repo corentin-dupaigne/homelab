@@ -39,3 +39,15 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    - name: pomopensource-https
+      hostname: pomopensource.corentindupaigne.com
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: pomopensource-tls
+            kind: Secret
+      allowedRoutes:
+        namespaces:
+          from: All

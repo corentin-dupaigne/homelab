@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pomopensource
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  sources:
+    - repoURL: ghcr.io/corentin-dupaigne/pomopensource/charts
+      chart: pomopensource
+      targetRevision: 1.1.0
+      helm:
+        values: |
+          gateway:
+            name: default-gateway
+            namespace: kube-system
+          app:
+            existingSecret: pomopensource-secrets
+          mysql:
+            auth:
+              existingSecret: pomopensource-secrets
+    - repoURL: https://github.com/corentin-dupaigne/homelab
+      targetRevision: main
+      path: kubernetes/manifests/workloads/pomopensource
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: pomopensource
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
