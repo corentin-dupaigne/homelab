@@ -8,3 +8,4 @@
     - security
     - k3s
     - argocd
+    - sealed-secrets

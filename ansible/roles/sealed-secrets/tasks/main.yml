@@ -1,0 +1,29 @@
+---
+- name: Wait for sealed-secrets controller to be available
+  command: >-
+    kubectl wait --for=condition=Available deployment/sealed-secrets
+    --namespace sealed-secrets --timeout=180s
+  changed_when: false
+
+- name: Fetch current sealed-secrets public certificate
+  command: >-
+    kubectl get --raw
+    /api/v1/namespaces/sealed-secrets/services/http:sealed-secrets:8080/proxy/v1/cert.pem
+  register: sealed_secrets_cert
+  changed_when: false
+
+- name: Sync public certificate into the local repo
+  copy:
+    content: "{{ sealed_secrets_cert.stdout }}\n"
+    dest: "{{ playbook_dir }}/../sealed-secrets/pub-cert.pem"
+    mode: "0644"
+  delegate_to: localhost
+  become: false
+  register: pubkey_sync
+
+- name: Notify that the public certificate changed
+  debug:
+    msg: >-
+      sealed-secrets/pub-cert.pem updated. Re-seal any existing SealedSecrets
+      against the new key and commit the updated cert.
+  when: pubkey_sync.changed
