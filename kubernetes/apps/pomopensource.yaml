@@ -21,6 +21,8 @@ spec:
           mysql:
             auth:
               existingSecret: pomopensource-secrets
+            image:
+              repository: bitnamilegacy/mysql
     - repoURL: https://github.com/corentin-dupaigne/homelab
       targetRevision: main
       path: kubernetes/manifests/workloads/pomopensource
