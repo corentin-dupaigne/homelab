@@ -51,6 +51,18 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    - name: zeina-https
+      hostname: girlfriend.corentindupaigne.com
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: zeina-tls
+            kind: Secret
+      allowedRoutes:
+        namespaces:
+          from: All
     - name: pomopensource-https
       hostname: pomopensource.corentindupaigne.com
       protocol: HTTPS
