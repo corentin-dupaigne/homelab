@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: ghcr.io/corentin-dupaigne/zeina
+    - repoURL: ghcr.io/corentin-dupaigne/zeina/charts
       chart: zeina
       targetRevision: 0.1.0
       helm:
