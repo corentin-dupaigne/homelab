@@ -10,7 +10,7 @@ spec:
   sources:
     - repoURL: ghcr.io/corentin-dupaigne/zeina/charts
       chart: zeina
-      targetRevision: 0.1.0
+      targetRevision: 0.1.1
       helm:
         values: |
           hostname: "girlfriend.corentindupaigne.com"
