@@ -8,9 +8,12 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: ghcr.io/corentin-dupaigne/portfolio-v2
-      chart: portfolio
-      targetRevision: 0.1.0
+    # The chart is served straight from the application repo: no packaged
+    # chart is published, and the deployed image tag is recorded in that
+    # repo's values.yaml by its CI. Nothing writes back to this repo.
+    - repoURL: https://github.com/corentin-dupaigne/portfolio_v2
+      targetRevision: main
+      path: helm/portfolio
       helm:
         values: |
           hostname: "corentindupaigne.com"
