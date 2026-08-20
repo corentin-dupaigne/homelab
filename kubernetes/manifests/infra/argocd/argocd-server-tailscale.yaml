@@ -1,6 +1,6 @@
 # ArgoCD itself was installed manually (via Ansible), not through GitOps like the
 # other apps in this repo, so we can't just add this annotation to its normal config.
-# This file only adds the one annotation below to the existing argocd-server Service,
+# This file only adds the annotations below to the existing argocd-server Service,
 # without taking over or changing anything else about it.
 apiVersion: v1
 kind: Service
@@ -9,3 +9,6 @@ metadata:
   namespace: argocd
   annotations:
     tailscale.com/expose: "true"
+    # Without this the operator names the tailnet device <namespace>-<service>,
+    # i.e. argocd-argocd-server. Reachable as http://argocd from any tailnet device.
+    tailscale.com/hostname: "argocd"
