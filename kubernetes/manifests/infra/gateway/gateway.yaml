@@ -39,18 +39,8 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
-    - name: argocd-https
-      hostname: argocd.corentindupaigne.com
-      protocol: HTTPS
-      port: 443
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - name: argocd-tls
-            kind: Secret
-      allowedRoutes:
-        namespaces:
-          from: All
+    # No argocd listener: ArgoCD is reachable over Tailscale only, see
+    # manifests/infra/argocd/argocd-server-tailscale.yaml
     - name: zeina-https
       hostname: girlfriend.corentindupaigne.com
       protocol: HTTPS
