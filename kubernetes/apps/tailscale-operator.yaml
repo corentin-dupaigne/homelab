@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tailscale-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  sources:
+    - repoURL: https://pkgs.tailscale.com/helmcharts
+      chart: tailscale-operator
+      targetRevision: 1.102.3
+      helm:
+        values: |
+          operatorConfig:
+            hostname: "tailscale-operator"
+            defaultTags:
+              - "tag:cluster-operator"
+          proxyConfig:
+            defaultTags: "tag:cluster-app"
+    - repoURL: https://github.com/corentin-dupaigne/homelab
+      targetRevision: main
+      path: kubernetes/manifests/infra/tailscale-operator
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tailscale
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
