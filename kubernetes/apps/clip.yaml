@@ -10,7 +10,7 @@ spec:
   sources:
     - repoURL: ghcr.io/corentin-dupaigne/clip/charts
       chart: clip
-      targetRevision: 0.2.0
+      targetRevision: 0.2.1
       helm:
         values: |
           tailscale:
