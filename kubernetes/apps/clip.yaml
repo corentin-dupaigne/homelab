@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: clip
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  sources:
+    - repoURL: ghcr.io/corentin-dupaigne/clip/charts
+      chart: clip
+      targetRevision: 0.2.0
+      helm:
+        values: |
+          tailscale:
+            hostname: "clip"
+          files:
+            # 5Gi budget, enforced by the app itself (oldest files evicted
+            # first). sizeLimit sits above it as the kubelet's backstop.
+            maxTotalBytes: 5368709120
+            maxFileBytes: 2147483648
+            sizeLimit: 6Gi
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+              ephemeral-storage: 64Mi
+            limits:
+              memory: 128Mi
+              ephemeral-storage: 6Gi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: clip
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
