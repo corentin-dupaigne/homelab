@@ -24,6 +24,6 @@
 - name: Notify that the public certificate changed
   debug:
     msg: >-
-      sealed-secrets/pub-cert.pem updated. Re-seal any existing SealedSecrets
-      against the new key and commit the updated cert.
+      sealed-secrets/pub-cert.pem updated. Commit it and seal new secrets
+      against it.
   when: pubkey_sync.changed
