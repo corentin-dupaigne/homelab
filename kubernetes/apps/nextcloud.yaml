@@ -1,0 +1,135 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nextcloud
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  sources:
+    - repoURL: https://nextcloud.github.io/helm/
+      chart: nextcloud
+      targetRevision: 9.2.6
+      helm:
+        values: |
+          # No Gateway listener and no public DNS record: this holds personal
+          # files, so it is reachable from the tailnet only — see the Service
+          # annotations below. Nextcloud validates the Host header against
+          # trustedDomains, so both the short tailnet name and the MagicDNS FQDN
+          # have to be listed.
+          nextcloud:
+            host: nextcloud
+            trustedDomains:
+              - nextcloud
+              # Replace with nextcloud.<tailnet>.ts.net once the tailnet name is
+              # known; the wildcard only ever matches names Tailscale hands out.
+              - "*.ts.net"
+            existingSecret:
+              enabled: true
+              secretName: nextcloud-secrets
+              usernameKey: nextcloud-username
+              passwordKey: nextcloud-password
+            # Tailscale terminates nothing — the tailnet device speaks plain HTTP
+            # to this Service — so leave the reverse-proxy protocol at http.
+            strategy:
+              type: Recreate
+
+          service:
+            type: ClusterIP
+            port: 8080
+            annotations:
+              # Reachable as http://nextcloud from any tailnet device.
+              tailscale.com/expose: "true"
+              # Without this the operator names the device <namespace>-<service>.
+              tailscale.com/hostname: "nextcloud"
+
+          # /var/www/html, which includes the data directory. No storageClassName:
+          # k3s's local-path provisioner is the default class, so this lives on the
+          # node's disk — back it up, it is the files themselves.
+          persistence:
+            enabled: true
+            accessMode: ReadWriteOnce
+            size: 20Gi
+
+          # Nextcloud discourages SQLite past single-user/testing, and migrating
+          # later is manual. Bundled PostgreSQL instead; note the bitnamilegacy
+          # image repo, same workaround this cluster already applies to the MySQL
+          # under pomopensource.
+          internalDatabase:
+            enabled: false
+          postgresql:
+            enabled: true
+            global:
+              postgresql:
+                auth:
+                  username: nextcloud
+                  database: nextcloud
+                  existingSecret: nextcloud-secrets
+                  secretKeys:
+                    adminPasswordKey: postgres-password
+                    userPasswordKey: db-password
+            primary:
+              persistence:
+                enabled: true
+                size: 8Gi
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  memory: 512Mi
+          # The chart reads the Nextcloud-side DB credentials from here even when
+          # the bundled PostgreSQL is what it points at.
+          externalDatabase:
+            existingSecret:
+              enabled: true
+              secretName: nextcloud-secrets
+              usernameKey: db-username
+              passwordKey: db-password
+
+          # Redis is off: a single replica gets its local cache from APCu, and a
+          # Redis pod plus its PVC is memory this node would rather keep.
+          redis:
+            enabled: false
+
+          # Background jobs (file scans, cleanup, notifications). The sidecar
+          # shares the pod's volume, so it needs none of the node affinity the
+          # CronJob flavour does on a ReadWriteOnce claim.
+          cronjob:
+            enabled: true
+            type: sidecar
+            sidecar:
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  memory: 128Mi
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              # PHP's own memory_limit is what actually bounds a request; this is
+              # the backstop for the whole apache pod.
+              memory: 1Gi
+
+          # First boot runs the installer against an empty database, which is far
+          # slower than the liveness probe's patience.
+          startupProbe:
+            enabled: true
+    - repoURL: https://github.com/corentin-dupaigne/homelab
+      targetRevision: main
+      path: kubernetes/manifests/workloads/nextcloud
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nextcloud
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
