@@ -37,7 +37,11 @@ spec:
 
           service:
             type: ClusterIP
-            port: 8080
+            # The tailnet device listens on the Service port, so 80 (not the
+            # chart's default 8080) is what makes this http://nextcloud rather
+            # than http://nextcloud:8080, and keeps the port out of the Host
+            # header that trustedDomains has to match.
+            port: 80
             annotations:
               # Reachable as http://nextcloud from any tailnet device.
               tailscale.com/expose: "true"
