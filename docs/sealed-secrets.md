@@ -36,18 +36,29 @@ kubeseal --cert sealed-secrets/pub-cert.pem --format yaml \
 
 3. Commit `sealed-secret.yaml` and delete `/tmp/secret.yaml`.
 
-## Rotating the public key
+## Renewing the sealing key
 
-The controller automatically rotates its key every 30 days. After a rotation, fetch the updated public key and commit it:
+The controller creates a new sealing keypair every 30 days. It *adds* keypairs rather than replacing them, and tries all of its private keys when decrypting, so existing `SealedSecret` manifests stay valid and never need re-sealing. Only the certificate used to seal *new* secrets changes.
+
+Re-running the playbook syncs the current certificate into the repo for you:
 
 ```bash
-kubectl get secret -n sealed-secrets \
-  -l sealedsecrets.bitnami.com/sealed-secrets-key \
-  -o jsonpath='{.items[0].data.tls\.crt}' | base64 -d > sealed-secrets/pub-cert.pem
+cd ansible && make deploy
 ```
 
-Existing `SealedSecret` manifests remain valid — the controller keeps all previous private keys.
+It prints a notice when the file changed; commit it. To fetch it without running the playbook:
 
-## Backing up the private key
+```bash
+kubeseal --controller-namespace sealed-secrets --controller-name sealed-secrets \
+  --fetch-cert > sealed-secrets/pub-cert.pem
+```
 
-If the cluster is lost, existing `SealedSecret` manifests cannot be decrypted without the private key.
+Sealing against a stale certificate is not an error — the controller still holds the older private key and will decrypt it.
+
+## The private key is not backed up
+
+This is deliberate, and the reasoning is in [ADR 0001](adr/0001-manage-secrets-with-sealed-secrets.md). Losing the cluster means no committed `SealedSecret` can be decrypted again.
+
+That is affordable only because every secret sealed here is issued by a provider and can be re-issued. Recovery is: re-issue the credential, seal it against the new controller's certificate, commit. The plaintext lives in a password manager, which is what actually has to survive.
+
+Before sealing a secret that **cannot** be re-issued — anything whose plaintext exists nowhere else — revisit that ADR first. This repo has no way to recover it.
