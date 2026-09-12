@@ -48,13 +48,14 @@ operators), `1` for workloads.
 | --- | --- |
 | argocd | tailnet (`http://argocd`) |
 | clip | tailnet (`http://clip`) |
+| monitoring (Prometheus/Grafana) | tailnet (`http://grafana`) |
 | nextcloud | tailnet (`http://nextcloud`) |
 | portfolio | `corentindupaigne.com` |
 | zeina | `girlfriend.corentindupaigne.com` |
 | pomopensource | `pomopensource.corentindupaigne.com` |
 
 Charts come from three places: upstream repos (cert-manager, sealed-secrets,
-Tailscale, Nextcloud), OCI charts published by the app's own CI
+Tailscale, Nextcloud, kube-prometheus-stack), OCI charts published by the app's own CI
 (`ghcr.io/corentin-dupaigne/...`), or straight from the app's git repo
 (portfolio). Nothing writes back to this repo.
 
