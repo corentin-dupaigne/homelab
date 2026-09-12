@@ -1,0 +1,119 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 90.1.1
+      helm:
+        values: |
+          # k3s runs the control plane as one process: these components have no
+          # separate metrics endpoints, so each would be a permanently down target.
+          kubeControllerManager:
+            enabled: false
+          kubeScheduler:
+            enabled: false
+          kubeProxy:
+            enabled: false
+          kubeEtcd:
+            enabled: false
+
+          # Nothing is wired to receive a page; rules still evaluate in Prometheus.
+          alertmanager:
+            enabled: false
+
+          prometheus:
+            prometheusSpec:
+              retention: 15d
+              retentionSize: 8GB
+              # Otherwise only ServiceMonitors carrying this release's label are
+              # picked up, silently ignoring anything an app chart ships.
+              serviceMonitorSelectorNilUsesHelmValues: false
+              podMonitorSelectorNilUsesHelmValues: false
+              ruleSelectorNilUsesHelmValues: false
+              probeSelectorNilUsesHelmValues: false
+              storageSpec:
+                volumeClaimTemplate:
+                  spec:
+                    accessModes: ["ReadWriteOnce"]
+                    resources:
+                      requests:
+                        storage: 10Gi
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 512Mi
+                limits:
+                  memory: 1536Mi
+
+          grafana:
+            admin:
+              existingSecret: grafana-admin
+              userKey: admin-user
+              passwordKey: admin-password
+            service:
+              type: ClusterIP
+              # The tailnet device listens on the Service port, so 80 (not the
+              # chart's default 3000) makes this http://grafana with no port.
+              port: 80
+              annotations:
+                tailscale.com/expose: "true"
+                # Without this the operator names the device <namespace>-<service>.
+                tailscale.com/hostname: "grafana"
+            grafana.ini:
+              server:
+                root_url: http://grafana/
+            persistence:
+              enabled: true
+              size: 2Gi
+            resources:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+
+          kube-state-metrics:
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 192Mi
+
+          prometheus-node-exporter:
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 64Mi
+
+          prometheusOperator:
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+    - repoURL: https://github.com/corentin-dupaigne/homelab
+      targetRevision: main
+      path: kubernetes/manifests/infra/monitoring
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # Also keeps the stack's large CRDs from hitting the client-side apply
+      # annotation size limit.
+      - ServerSideApply=true
