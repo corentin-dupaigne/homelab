@@ -1,2 +1,5 @@
 ---
-# handlers file for roles/k3s
+- name: Restart k3s
+  systemd:
+    name: k3s
+    state: restarted

@@ -1,8 +1,53 @@
 ---
+- name: Create k3s config directory
+  file:
+    path: /etc/rancher/k3s
+    state: directory
+    mode: "0755"
+
+# Written before the install so a fresh host never starts with flannel.
+- name: Write k3s config
+  template:
+    src: config.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    mode: "0600"
+  notify: Restart k3s
+
 - name: Install k3s
-  shell: curl -sfL https://get.k3s.io | sh -s - --disable traefik
+  shell: curl -sfL https://get.k3s.io | sh -
   args:
     creates: /usr/local/bin/k3s
+
+# Leftover from a flannel-era install; it would otherwise keep being picked
+# up by containerd.
+- name: Remove flannel CNI config
+  file:
+    path: /var/lib/rancher/k3s/agent/etc/cni/net.d/10-flannel.conflist
+    state: absent
+
+- name: Apply k3s config changes
+  meta: flush_handlers
+
+- name: Copy tiny-cni manifests
+  copy:
+    src: "{{ playbook_dir }}/../kubernetes/manifests/infra/tiny-cni/"
+    dest: /etc/rancher/k3s/tiny-cni/
+    mode: "0600"
+
+# Nothing else gets a pod IP until this is in place, including Argo CD, which
+# adopts these same manifests once it is running.
+- name: Install tiny-cni
+  command: kubectl apply -f /etc/rancher/k3s/tiny-cni/
+  register: tiny_cni_apply
+  changed_when: "'configured' in tiny_cni_apply.stdout or 'created' in tiny_cni_apply.stdout"
+  # The API server may still be starting right after install or restart.
+  retries: 12
+  delay: 5
+  until: tiny_cni_apply is succeeded
+
+- name: Wait for tiny-cni to be rolled out
+  command: kubectl rollout status daemonset/tiny-cni -n kube-system --timeout=180s
+  changed_when: false
 
 - name: Install helm
   shell: curl -sfL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash

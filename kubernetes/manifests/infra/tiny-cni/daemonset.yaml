@@ -1,0 +1,82 @@
+# Adapted from https://github.com/corentin-dupaigne/tiny-cni/blob/v1.1.0/manifests/daemonset.yaml
+# for k3s, whose containerd reads CNI binaries and configs from its own
+# directories rather than /opt/cni/bin and /etc/cni/net.d.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: tiny-cni
+  namespace: kube-system
+  labels:
+    app: tiny-cni
+spec:
+  selector:
+    matchLabels:
+      app: tiny-cni
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: tiny-cni
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9102"
+    spec:
+      hostNetwork: true
+      priorityClassName: system-node-critical
+      # Must schedule on a node that is NotReady precisely because no CNI is
+      # installed yet.
+      tolerations:
+        - operator: Exists
+      initContainers:
+        # Copies the binary and config onto the host, then exits.
+        - name: install
+          image: ghcr.io/corentin-dupaigne/tiny-cni:1.1.0
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: cni-bin
+              mountPath: /opt/cni/bin
+            - name: cni-conf
+              mountPath: /etc/cni/net.d
+            - name: config
+              mountPath: /app/config-default.json
+              subPath: config-default.json
+      containers:
+        # Exposes IPAM and veth metrics for Prometheus.
+        - name: agent
+          image: ghcr.io/corentin-dupaigne/tiny-cni-agent:1.1.0
+          ports:
+            - name: metrics
+              containerPort: 9102
+          resources:
+            requests:
+              cpu: 5m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
+          volumeMounts:
+            - name: cni-conf
+              mountPath: /etc/cni/net.d
+              readOnly: true
+            - name: ipam-state
+              mountPath: /run/tinycni.json
+              readOnly: true
+      volumes:
+        # bin_dirs / conf_dir from /var/lib/rancher/k3s/agent/etc/containerd/config.toml
+        - name: cni-bin
+          hostPath:
+            path: /var/lib/rancher/k3s/data/cni
+            type: DirectoryOrCreate
+        - name: cni-conf
+          hostPath:
+            path: /var/lib/rancher/k3s/agent/etc/cni/net.d
+            type: DirectoryOrCreate
+        - name: config
+          configMap:
+            name: tiny-cni-config
+        # Must match ipam.storagePath in the ConfigMap.
+        - name: ipam-state
+          hostPath:
+            path: /run/tinycni.json
+            type: FileOrCreate
