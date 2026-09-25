@@ -33,7 +33,9 @@ run tiny-cni as a DaemonSet in `kube-system`.
 - Single node only: tiny-cni has no cross-node routing. Adding a node means
   revisiting this.
 - At most 253 pods at a time (one /24, IPs are reused on DEL).
-- No NetworkPolicy enforcement.
+- No NetworkPolicy enforcement. The embedded controller also used to accept
+  pod-to-host traffic ahead of ufw; the security role now allows the pod CIDR
+  explicitly.
 - IPAM state lives in `/run/tinycni.json` (tmpfs), so it resets on reboot along
   with every pod.
 - Switching an existing host from flannel is disruptive: see the README.

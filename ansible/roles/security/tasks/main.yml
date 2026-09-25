@@ -33,6 +33,14 @@
     port: "443"
     proto: tcp
 
+# Pods reach the host itself for the API server (6443), the kubelet (10250)
+# and hostNetwork pods such as node-exporter. tiny-cni only opens FORWARD,
+# so without this the default incoming deny drops them.
+- name: Allow traffic from the pod CIDR
+  ufw:
+    rule: allow
+    from_ip: 10.42.0.0/16
+
 - name: Enable ufw
   ufw:
     state: enabled
