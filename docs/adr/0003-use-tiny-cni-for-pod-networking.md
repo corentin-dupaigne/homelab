@@ -21,9 +21,10 @@ run tiny-cni as a DaemonSet in `kube-system`.
 - Ansible installs it straight after k3s, because nothing, Argo CD included,
   gets a pod IP before a CNI exists. Argo CD then adopts the same manifests
   (`kubernetes/manifests/infra/tiny-cni`), with pruning off.
-- The DaemonSet mounts k3s's own CNI directories
-  (`/var/lib/rancher/k3s/data/cni`, `/var/lib/rancher/k3s/agent/etc/cni/net.d`),
-  not the upstream `/opt/cni/bin` and `/etc/cni/net.d`.
+- Without flannel, k3s leaves containerd on the upstream CNI directories
+  (`/opt/cni/bin`, `/etc/cni/net.d`), where nothing but tiny-cni is installed.
+  Ansible links k3s's `loopback` plugin into `/opt/cni/bin`, since containerd
+  needs it for every pod.
 - The CNI config is overridden from a ConfigMap so its subnet is the node's
   podCIDR, `10.42.0.0/24`, instead of the image's `10.244.0.0/24`.
 

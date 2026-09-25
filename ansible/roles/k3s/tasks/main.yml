@@ -28,6 +28,33 @@
 - name: Apply k3s config changes
   meta: flush_handlers
 
+# Still up after a flannel-era install, and cni0 holds 10.42.0.1, the address
+# tiny-cni's bridge needs.
+- name: Remove flannel interfaces
+  shell: |
+    for link in cni0 flannel.1; do
+      if ip link show "$link" >/dev/null 2>&1; then
+        ip link delete "$link" && echo "deleted $link"
+      fi
+    done
+  register: flannel_links
+  changed_when: flannel_links.stdout != ""
+
+- name: Create CNI binary directory
+  file:
+    path: /opt/cni/bin
+    state: directory
+    mode: "0755"
+
+# containerd sets up every pod's lo with the loopback plugin. Without flannel,
+# k3s points containerd at /opt/cni/bin, where nothing provides it; k3s's own
+# copy is kept current across upgrades under data/cni.
+- name: Link k3s loopback plugin into /opt/cni/bin
+  file:
+    src: /var/lib/rancher/k3s/data/cni/loopback
+    dest: /opt/cni/bin/loopback
+    state: link
+
 - name: Copy tiny-cni manifests
   copy:
     src: "{{ playbook_dir }}/../kubernetes/manifests/infra/tiny-cni/"

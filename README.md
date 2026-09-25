@@ -90,10 +90,9 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 
 ### Moving an existing host off flannel
 
-Re-running the playbook rewrites the k3s config and restarts k3s without
-flannel, but the running pods keep their flannel interfaces and the `cni0`
-bridge still holds `10.42.0.1`. Reboot once afterwards so every pod is
-recreated on tiny-cni:
+Re-running the playbook restarts k3s without flannel and removes flannel's
+interfaces, but pods that were already running keep their now-detached network
+namespaces. Reboot once afterwards so every pod is recreated on tiny-cni:
 
 ```bash
 make deploy

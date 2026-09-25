@@ -1,6 +1,5 @@
-# Adapted from https://github.com/corentin-dupaigne/tiny-cni/blob/v1.1.0/manifests/daemonset.yaml
-# for k3s, whose containerd reads CNI binaries and configs from its own
-# directories rather than /opt/cni/bin and /etc/cni/net.d.
+# From https://github.com/corentin-dupaigne/tiny-cni/blob/v1.1.0/manifests/daemonset.yaml,
+# with the CNI config taken from a ConfigMap.
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -63,14 +62,15 @@ spec:
               mountPath: /run/tinycni.json
               readOnly: true
       volumes:
-        # bin_dirs / conf_dir from /var/lib/rancher/k3s/agent/etc/containerd/config.toml
+        # With flannel-backend: none, k3s leaves containerd on the upstream
+        # CNI directories instead of its own.
         - name: cni-bin
           hostPath:
-            path: /var/lib/rancher/k3s/data/cni
+            path: /opt/cni/bin
             type: DirectoryOrCreate
         - name: cni-conf
           hostPath:
-            path: /var/lib/rancher/k3s/agent/etc/cni/net.d
+            path: /etc/cni/net.d
             type: DirectoryOrCreate
         - name: config
           configMap:
