@@ -22,7 +22,11 @@ docs/adr/                Architecture decision records
 
 ## How it fits together
 
-- **k3s**, installed with `--disable traefik` to make room for Envoy Gateway.
+- **k3s**, configured (`/etc/rancher/k3s/config.yaml`) without traefik, to make
+  room for Envoy Gateway, and without flannel.
+- **Pod networking** is [tiny-cni](https://github.com/corentin-dupaigne/tiny-cni),
+  installed by Ansible right after k3s and then adopted by Argo CD. See
+  [ADR 0003](docs/adr/0003-use-tiny-cni-for-pod-networking.md).
 - **Argo CD** is installed by Ansible (Helm), then handed a single root
   `Application` pointing at `kubernetes/apps`. Every other Application is a file
   in that directory, so adding an app means adding one YAML file and pushing.
@@ -38,7 +42,7 @@ docs/adr/                Architecture decision records
   the tailnet with an annotation, which is how Argo CD and Nextcloud are reached
   without a public DNS record or a Gateway listener.
 
-Sync order is controlled by `argocd.argoproj.io/sync-wave`: `-1` for
+Sync order is controlled by `argocd.argoproj.io/sync-wave`: `-2` for tiny-cni, `-1` for
 cert-manager and sealed-secrets, `0` for cluster config (gateway, issuers,
 operators), `1` for workloads.
 
@@ -72,7 +76,7 @@ make deploy
 The playbook is idempotent and safe to re-run. It:
 
 1. hardens the host (ufw, SSH key-only, no root login),
-2. installs k3s, Helm and Envoy Gateway,
+2. installs k3s, tiny-cni, Helm and Envoy Gateway,
 3. installs Argo CD and applies the root Application,
 4. fetches the sealed-secrets public certificate back into
    `sealed-secrets/pub-cert.pem` — commit it if it changed.
@@ -82,6 +86,20 @@ Argo CD then pulls everything else. Its initial admin password:
 ```bash
 kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath='{.data.password}' | base64 -d
+```
+
+### Moving an existing host off flannel
+
+Re-running the playbook restarts k3s without flannel, removes flannel's
+interfaces and installs tiny-cni, but pods that were already running keep
+their now-detached network namespaces. The first run therefore fails waiting
+for Envoy Gateway, whose old pod can no longer reach the API server. Reboot so
+every pod is recreated on tiny-cni, then run the playbook again to finish:
+
+```bash
+make deploy                   # expected to fail at "Wait for Envoy Gateway"
+ssh ubuntu@<vps> sudo reboot
+make deploy                   # once the host is back
 ```
 
 ### Testing the playbook

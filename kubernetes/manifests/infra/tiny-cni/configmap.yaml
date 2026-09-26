@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tiny-cni-config
+  namespace: kube-system
+data:
+  # Replaces the config baked into the install image. The subnet must be the
+  # node's podCIDR (k3s hands the first node 10.42.0.0/24 out of its default
+  # 10.42.0.0/16 cluster CIDR); the image default of 10.244.0.0/24 would put
+  # pods outside the cluster CIDR kube-proxy expects.
+  config-default.json: |
+    {
+      "cniVersion": "1.0.0",
+      "name": "tinycni",
+      "type": "tiny-cni",
+      "bridge": "tcni-bridge",
+      "prefix": "tcni",
+      "ipam": {
+        "type": "tiny-cni",
+        "subnet": "10.42.0.0/24",
+        "storagePath": "/run/tinycni.json"
+      }
+    }

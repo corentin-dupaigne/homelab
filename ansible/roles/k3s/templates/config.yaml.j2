@@ -1,0 +1,7 @@
+# Managed by Ansible (roles/k3s). k3s reads this on every start.
+disable:
+  - traefik
+# Pod networking is tiny-cni, installed right after k3s by this role.
+flannel-backend: none
+# The embedded network policy controller assumes flannel.
+disable-network-policy: true

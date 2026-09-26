@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tiny-cni
+  namespace: argocd
+  annotations:
+    # Ansible installs it before Argo CD exists (nothing gets a pod IP
+    # without it); Argo CD adopts it from there.
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/corentin-dupaigne/homelab
+    targetRevision: main
+    path: kubernetes/manifests/infra/tiny-cni
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      # Pruning the CNI would take every pod's networking down with it.
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

@@ -1,0 +1,17 @@
+# The agent's prometheus.io/* annotations are ignored by the operator, so the
+# scrape is declared here, next to the stack that owns the PodMonitor CRD
+# (the tiny-cni manifests are applied by Ansible before it exists).
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: tiny-cni
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - kube-system
+  selector:
+    matchLabels:
+      app: tiny-cni
+  podMetricsEndpoints:
+    - port: metrics
