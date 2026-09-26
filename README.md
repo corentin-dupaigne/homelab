@@ -90,13 +90,16 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 
 ### Moving an existing host off flannel
 
-Re-running the playbook restarts k3s without flannel and removes flannel's
-interfaces, but pods that were already running keep their now-detached network
-namespaces. Reboot once afterwards so every pod is recreated on tiny-cni:
+Re-running the playbook restarts k3s without flannel, removes flannel's
+interfaces and installs tiny-cni, but pods that were already running keep
+their now-detached network namespaces. The first run therefore fails waiting
+for Envoy Gateway, whose old pod can no longer reach the API server. Reboot so
+every pod is recreated on tiny-cni, then run the playbook again to finish:
 
 ```bash
-make deploy
+make deploy                   # expected to fail at "Wait for Envoy Gateway"
 ssh ubuntu@<vps> sudo reboot
+make deploy                   # once the host is back
 ```
 
 ### Testing the playbook
