@@ -8,9 +8,12 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: ghcr.io/corentin-dupaigne/pomopensource/charts
-      chart: pomopensource
-      targetRevision: 1.1.0
+    # The chart is served straight from the application repo: no packaged
+    # chart is published, and its CI records each release (a vX.Y.Z git
+    # tag) in the chart on master. Nothing writes back to this repo.
+    - repoURL: https://github.com/corentin-dupaigne/pomopensource
+      targetRevision: master
+      path: pomopensource
       helm:
         values: |
           gateway:
