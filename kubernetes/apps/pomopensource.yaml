@@ -10,7 +10,7 @@ spec:
   sources:
     - repoURL: ghcr.io/corentin-dupaigne/pomopensource/charts
       chart: pomopensource
-      targetRevision: 1.1.0
+      targetRevision: 1.2.0
       helm:
         values: |
           gateway:
@@ -18,11 +18,15 @@ spec:
             namespace: kube-system
           app:
             existingSecret: pomopensource-secrets
+          # PostgreSQL from the CloudNativePG Cluster in
+          # manifests/workloads/pomopensource/database.yaml, not the chart's
+          # bundled Bitnami MySQL; the operator generates pomopensource-db-app.
           mysql:
-            auth:
-              existingSecret: pomopensource-secrets
-            image:
-              repository: bitnamilegacy/mysql
+            enabled: false
+          externalDatabase:
+            enabled: true
+            connection: pgsql
+            existingSecret: pomopensource-db-app
     - repoURL: https://github.com/corentin-dupaigne/homelab
       targetRevision: main
       path: kubernetes/manifests/workloads/pomopensource
