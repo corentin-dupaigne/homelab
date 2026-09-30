@@ -8,9 +8,12 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: ghcr.io/corentin-dupaigne/clip/charts
-      chart: clip
-      targetRevision: 0.2.1
+    # The chart is served straight from the application repo: no packaged
+    # chart is published, and its CI records each release (a vX.Y.Z git
+    # tag) in the chart on main. Nothing writes back to this repo.
+    - repoURL: https://github.com/corentin-dupaigne/clip
+      targetRevision: main
+      path: chart
       helm:
         values: |
           tailscale:

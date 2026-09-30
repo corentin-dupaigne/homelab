@@ -8,9 +8,12 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: ghcr.io/corentin-dupaigne/zeina/charts
-      chart: zeina
-      targetRevision: 0.1.1
+    # The chart is served straight from the application repo: no packaged
+    # chart is published, and its CI records each release (a vX.Y.Z git
+    # tag) in the chart on main. Nothing writes back to this repo.
+    - repoURL: https://github.com/corentin-dupaigne/zeina
+      targetRevision: main
+      path: helm/zeina
       helm:
         values: |
           hostname: "girlfriend.corentindupaigne.com"
