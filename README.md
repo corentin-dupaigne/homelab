@@ -38,12 +38,15 @@ docs/adr/                Architecture decision records
 - **Secrets** are [Sealed Secrets](docs/sealed-secrets.md): encrypted manifests
   live next to the workloads that use them, and only the in-cluster controller
   can decrypt them. See [ADR 0001](docs/adr/0001-manage-secrets-with-sealed-secrets.md).
+- **Databases** are PostgreSQL `Cluster`s run by the [CloudNativePG](docs/cloudnative-pg.md)
+  operator, declared next to the app that uses them, rather than subcharts
+  bundled into each app's chart. See [ADR 0004](docs/adr/0004-run-postgresql-with-cloudnative-pg.md).
 - **Private access** is Tailscale. The Tailscale operator exposes a Service to
   the tailnet with an annotation, which is how Argo CD and Nextcloud are reached
   without a public DNS record or a Gateway listener.
 
 Sync order is controlled by `argocd.argoproj.io/sync-wave`: `-2` for tiny-cni, `-1` for
-cert-manager and sealed-secrets, `0` for cluster config (gateway, issuers,
+cert-manager, sealed-secrets and CloudNativePG, `0` for cluster config (gateway, issuers,
 operators), `1` for workloads.
 
 ## Applications
@@ -59,7 +62,7 @@ operators), `1` for workloads.
 | pomopensource | `pomopensource.corentindupaigne.com` |
 
 Charts come from three places: upstream repos (cert-manager, sealed-secrets,
-Tailscale, Nextcloud, kube-prometheus-stack), OCI charts published by the app's own CI
+Tailscale, CloudNativePG, Nextcloud, kube-prometheus-stack), OCI charts published by the app's own CI
 (`ghcr.io/corentin-dupaigne/...`), or straight from the app's git repo
 (portfolio). Nothing writes back to this repo.
 
@@ -125,4 +128,6 @@ make clean       # delete the VM
 3. Add `kubernetes/apps/<name>.yaml` with sync-wave `1`.
 4. Seal any secrets into `kubernetes/manifests/workloads/<name>/` following
    [docs/sealed-secrets.md](docs/sealed-secrets.md).
-5. Push. Argo CD does the rest.
+5. If it needs PostgreSQL, declare a `Cluster` there too instead of enabling
+   the chart's bundled database; see [docs/cloudnative-pg.md](docs/cloudnative-pg.md).
+6. Push. Argo CD does the rest.

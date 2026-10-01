@@ -34,6 +34,32 @@ spec:
             # to this Service — so leave the reverse-proxy protocol at http.
             strategy:
               type: Recreate
+            # The POSTGRES_* variables the chart derives from externalDatabase
+            # (below) are only read by the installer; afterwards config.php is
+            # authoritative. Nextcloud lets NC_<key> override any config.php key,
+            # so the connection always follows the operator's secret, including
+            # on an install that predates it.
+            extraEnv:
+              - name: NC_dbhost
+                valueFrom:
+                  secretKeyRef:
+                    name: nextcloud-db-app
+                    key: host
+              - name: NC_dbname
+                valueFrom:
+                  secretKeyRef:
+                    name: nextcloud-db-app
+                    key: dbname
+              - name: NC_dbuser
+                valueFrom:
+                  secretKeyRef:
+                    name: nextcloud-db-app
+                    key: username
+              - name: NC_dbpassword
+                valueFrom:
+                  secretKeyRef:
+                    name: nextcloud-db-app
+                    key: password
 
           service:
             type: ClusterIP
@@ -56,41 +82,24 @@ spec:
             accessMode: ReadWriteOnce
             size: 20Gi
 
-          # Nextcloud discourages SQLite past single-user/testing, and migrating
-          # later is manual. Bundled PostgreSQL instead; note the bitnamilegacy
-          # image repo, same workaround this cluster already applies to the MySQL
-          # under pomopensource.
+          # Nextcloud discourages SQLite past single-user/testing. PostgreSQL
+          # comes from the CloudNativePG Cluster in
+          # manifests/workloads/nextcloud/database.yaml, not the chart's bundled
+          # Bitnami subchart; the operator generates nextcloud-db-app.
           internalDatabase:
             enabled: false
           postgresql:
-            enabled: true
-            global:
-              postgresql:
-                auth:
-                  username: nextcloud
-                  database: nextcloud
-                  existingSecret: nextcloud-secrets
-                  secretKeys:
-                    adminPasswordKey: postgres-password
-                    userPasswordKey: db-password
-            primary:
-              persistence:
-                enabled: true
-                size: 8Gi
-              resources:
-                requests:
-                  cpu: 50m
-                  memory: 128Mi
-                limits:
-                  memory: 512Mi
-          # The chart reads the Nextcloud-side DB credentials from here even when
-          # the bundled PostgreSQL is what it points at.
+            enabled: false
           externalDatabase:
+            enabled: true
+            type: postgresql
             existingSecret:
               enabled: true
-              secretName: nextcloud-secrets
-              usernameKey: db-username
-              passwordKey: db-password
+              secretName: nextcloud-db-app
+              usernameKey: username
+              passwordKey: password
+              hostKey: host
+              databaseKey: dbname
 
           # Redis is off: a single replica gets its local cache from APCu, and a
           # Redis pod plus its PVC is memory this node would rather keep.
