@@ -21,6 +21,11 @@ spec:
             namespace: kube-system
           app:
             existingSecret: pomopensource-secrets
+          # Discord Activity. The client ID is public; the client secret is
+          # DISCORD_CLIENT_SECRET in the sealed pomopensource-secrets.
+          discord:
+            clientId: "1557798944061399090"
+            existingSecret: pomopensource-secrets
           mysql:
             auth:
               existingSecret: pomopensource-secrets
