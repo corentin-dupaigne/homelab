@@ -1,4 +1,4 @@
-# Accounts, focus time and Discord calls of pomopensource, read from its
+# Accounts, focus time, and Discord calls and servers of pomopensource, read from its
 # MySQL database through the read-only grafana account (see the
 # grafana-datasource-pomopensource datasource, and the Job that creates the
 # account in kubernetes/manifests/workloads/pomopensource).
@@ -15,7 +15,7 @@ data:
     {
       "title": "pomopensource",
       "uid": "pomopensource",
-      "description": "Accounts, focus time and Discord calls, read from the app's database",
+      "description": "Accounts, focus time, and Discord calls and servers, read from the app's database",
       "tags": [
         "pomopensource"
       ],
@@ -1071,8 +1071,8 @@ data:
             "uid": "pomopensource-mysql"
           },
           "gridPos": {
-            "h": 8,
-            "w": 6,
+            "h": 4,
+            "w": 4,
             "x": 0,
             "y": 36
           },
@@ -1123,16 +1123,16 @@ data:
         },
         {
           "type": "stat",
-          "title": "Calls opened",
+          "title": "Calls",
           "id": 22,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
           },
           "gridPos": {
-            "h": 8,
-            "w": 6,
-            "x": 6,
+            "h": 4,
+            "w": 4,
+            "x": 4,
             "y": 36
           },
           "targets": [
@@ -1145,7 +1145,7 @@ data:
               "editorMode": "code",
               "format": "table",
               "rawQuery": true,
-              "rawSql": "SELECT COUNT(id) AS calls FROM activity_rooms WHERE $__timeFilter(created_at)"
+              "rawSql": "SELECT COUNT(id) AS calls FROM activity_launches WHERE $__timeFilter(created_at)"
             }
           ],
           "fieldConfig": {
@@ -1179,12 +1179,418 @@ data:
             "textMode": "value",
             "justifyMode": "center"
           },
-          "description": "Discord Activity instances that used the timer. Calls idle for a day are deleted, so this only covers the last day or so."
+          "description": "Discord Activity instances that used the timer."
+        },
+        {
+          "type": "stat",
+          "title": "Servers",
+          "id": 23,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 8,
+            "y": 36
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT COUNT(DISTINCT guild_id) AS servers FROM activity_launches WHERE $__timeFilter(created_at) AND guild_id IS NOT NULL"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Discord servers with at least one call."
+        },
+        {
+          "type": "stat",
+          "title": "New servers",
+          "id": 24,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 12,
+            "y": 36
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT COUNT(guild_id) AS servers FROM (SELECT guild_id, MIN(created_at) AS first_call FROM activity_launches WHERE guild_id IS NOT NULL GROUP BY guild_id) AS servers WHERE $__timeFilter(first_call)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Servers whose first call is in the selected time range."
+        },
+        {
+          "type": "stat",
+          "title": "Voice channels",
+          "id": 25,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 16,
+            "y": 36
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT COUNT(DISTINCT channel_id) AS channels FROM activity_launches WHERE $__timeFilter(created_at) AND kind = 'server'"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Distinct server voice channels with a call."
+        },
+        {
+          "type": "stat",
+          "title": "Calls in a server",
+          "id": 26,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 20,
+            "y": 36
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT 100 * SUM(kind = 'server') / NULLIF(COUNT(id), 0) AS share FROM activity_launches WHERE $__timeFilter(created_at)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "The rest are private calls: DMs and group DMs."
+        },
+        {
+          "type": "timeseries",
+          "title": "Servers with a call per day",
+          "id": 27,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 40
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "time_series",
+              "rawQuery": true,
+              "rawSql": "SELECT $__timeGroupAlias(created_at, 1d), COUNT(DISTINCT guild_id) AS servers FROM activity_launches WHERE $__timeFilter(created_at) AND guild_id IS NOT NULL GROUP BY 1 ORDER BY 1"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "bars",
+                "fillOpacity": 70,
+                "lineWidth": 1,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "min": 0,
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "showLegend": false,
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Calls per day",
+          "id": 28,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 40
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "time_series",
+              "rawQuery": true,
+              "rawSql": "SELECT $__timeGroupAlias(created_at, 1d), kind AS metric, COUNT(id) AS calls FROM activity_launches WHERE $__timeFilter(created_at) GROUP BY 1, 2 ORDER BY 1"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "bars",
+                "fillOpacity": 70,
+                "lineWidth": 1,
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "normal",
+                  "group": "A"
+                }
+              },
+              "min": 0,
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "showLegend": true,
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "description": "In a server's voice channel, or private (DMs and group DMs)."
+        },
+        {
+          "type": "table",
+          "title": "Most active servers",
+          "id": 29,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "description": "Discord server IDs: the app does not know their names.",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 48
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT guild_id AS server, COUNT(id) AS calls, COUNT(DISTINCT channel_id) AS \"voice channels\", MAX(created_at) AS \"last call\" FROM activity_launches WHERE $__timeFilter(created_at) AND guild_id IS NOT NULL GROUP BY guild_id ORDER BY calls DESC LIMIT 15"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "last call"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "dateTimeFromNow"
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm"
+          }
         },
         {
           "type": "table",
           "title": "Pomodoro length in calls",
-          "id": 23,
+          "id": 30,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1194,7 +1600,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 36
+            "y": 48
           },
           "targets": [
             {
