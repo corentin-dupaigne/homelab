@@ -1,0 +1,1222 @@
+# Accounts, focus time and Discord calls of pomopensource, read from its
+# MySQL database through the read-only grafana account (see the
+# grafana-datasource-pomopensource datasource, and the Job that creates the
+# account in kubernetes/manifests/workloads/pomopensource).
+# Picked up by the Grafana dashboard sidecar through the grafana_dashboard label.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    grafana_dashboard: "1"
+  name: pomopensource-dashboard
+  namespace: monitoring
+data:
+  pomopensource.json: |
+    {
+      "title": "pomopensource",
+      "uid": "pomopensource",
+      "description": "Accounts, focus time and Discord calls, read from the app's database",
+      "tags": [
+        "pomopensource"
+      ],
+      "editable": true,
+      "graphTooltip": 1,
+      "refresh": "5m",
+      "time": {
+        "from": "now-30d",
+        "to": "now"
+      },
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "templating": {
+        "list": []
+      },
+      "panels": [
+        {
+          "type": "row",
+          "title": "Users",
+          "id": 1,
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "panels": []
+        },
+        {
+          "type": "stat",
+          "title": "Accounts",
+          "id": 2,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 0,
+            "y": 1
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT COUNT(id) AS accounts FROM users"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          }
+        },
+        {
+          "type": "stat",
+          "title": "New accounts",
+          "id": 3,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 4,
+            "y": 1
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT COUNT(id) AS accounts FROM users WHERE $__timeFilter(created_at)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Created in the selected time range."
+        },
+        {
+          "type": "stat",
+          "title": "Active today",
+          "id": 4,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 8,
+            "y": 1
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT COUNT(DISTINCT user_id) AS users FROM focused_sessions WHERE started_at >= UTC_DATE()"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Accounts that started a focus session today (UTC)."
+        },
+        {
+          "type": "stat",
+          "title": "Active, last 7 days",
+          "id": 5,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 12,
+            "y": 1
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT COUNT(DISTINCT user_id) AS users FROM focused_sessions WHERE started_at >= UTC_TIMESTAMP() - INTERVAL 7 DAY"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          }
+        },
+        {
+          "type": "stat",
+          "title": "Active, last 30 days",
+          "id": 6,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 16,
+            "y": 1
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT COUNT(DISTINCT user_id) AS users FROM focused_sessions WHERE started_at >= UTC_TIMESTAMP() - INTERVAL 30 DAY"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          }
+        },
+        {
+          "type": "stat",
+          "title": "Signed in with Discord",
+          "id": 7,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 20,
+            "y": 1
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT 100 * COUNT(discord_id) / COUNT(id) AS share FROM users"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Share of accounts linked to a Discord account."
+        },
+        {
+          "type": "timeseries",
+          "title": "Active users per day",
+          "id": 8,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 5
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "time_series",
+              "rawQuery": true,
+              "rawSql": "SELECT $__timeGroupAlias(started_at, 1d), COUNT(DISTINCT user_id) AS \"active users\" FROM focused_sessions WHERE $__timeFilter(started_at) GROUP BY 1 ORDER BY 1"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "bars",
+                "fillOpacity": 70,
+                "lineWidth": 1,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "min": 0,
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "showLegend": false,
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "New accounts per day",
+          "id": 9,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 5
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "time_series",
+              "rawQuery": true,
+              "rawSql": "SELECT $__timeGroupAlias(created_at, 1d), COUNT(id) AS \"new accounts\" FROM users WHERE $__timeFilter(created_at) GROUP BY 1 ORDER BY 1"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "bars",
+                "fillOpacity": 70,
+                "lineWidth": 1,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "min": 0,
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "showLegend": false,
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
+        },
+        {
+          "type": "row",
+          "title": "Focus",
+          "id": 10,
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 13
+          },
+          "panels": []
+        },
+        {
+          "type": "stat",
+          "title": "Focus time",
+          "id": 11,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 0,
+            "y": 14
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT SUM(minute_focused) / 60 AS hours FROM focused_sessions WHERE $__timeFilter(started_at)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "suffix: h",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Hours focused, all accounts, in the selected time range."
+        },
+        {
+          "type": "stat",
+          "title": "Sessions",
+          "id": 12,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 6,
+            "y": 14
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT COUNT(id) AS sessions FROM focused_sessions WHERE $__timeFilter(started_at)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          }
+        },
+        {
+          "type": "stat",
+          "title": "Average session",
+          "id": 13,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 12,
+            "y": 14
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT AVG(minute_focused) AS minutes FROM focused_sessions WHERE $__timeFilter(started_at) AND minute_focused > 0"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "m",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Sessions with time saved only."
+        },
+        {
+          "type": "stat",
+          "title": "Focus time on a project",
+          "id": 14,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 18,
+            "y": 14
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT 100 * SUM(CASE WHEN project_id IS NULL THEN 0 ELSE minute_focused END) / NULLIF(SUM(minute_focused), 0) AS share FROM focused_sessions WHERE $__timeFilter(started_at)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "The rest is general focus, with no project picked."
+        },
+        {
+          "type": "timeseries",
+          "title": "Focus hours per day",
+          "id": 15,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 18
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "time_series",
+              "rawQuery": true,
+              "rawSql": "SELECT $__timeGroupAlias(started_at, 1d), SUM(minute_focused) / 60 AS hours FROM focused_sessions WHERE $__timeFilter(started_at) GROUP BY 1 ORDER BY 1"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "suffix: h",
+              "custom": {
+                "drawStyle": "bars",
+                "fillOpacity": 70,
+                "lineWidth": 1,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "min": 0,
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "showLegend": false,
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
+        },
+        {
+          "type": "barchart",
+          "title": "Focus by hour of day (UTC)",
+          "id": 16,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 18
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT LPAD(HOUR(started_at), 2, '0') AS hour, SUM(minute_focused) / 60 AS hours FROM focused_sessions WHERE $__timeFilter(started_at) GROUP BY 1 ORDER BY 1"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "fillOpacity": 70
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "hours"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "suffix: h"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "xField": "hour",
+            "orientation": "vertical",
+            "showValue": "never",
+            "legend": {
+              "showLegend": false,
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
+        },
+        {
+          "type": "row",
+          "title": "Health",
+          "id": 17,
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 26
+          },
+          "panels": []
+        },
+        {
+          "type": "stat",
+          "title": "Sessions with no time saved",
+          "id": 18,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 27
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT 100 * SUM(ended_at IS NULL AND minute_focused = 0) / NULLIF(COUNT(id), 0) AS share FROM focused_sessions WHERE $__timeFilter(started_at) AND started_at < UTC_TIMESTAMP() - INTERVAL 2 HOUR"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 5
+                  },
+                  {
+                    "color": "red",
+                    "value": 20
+                  }
+                ]
+              },
+              "decimals": 1
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Started over 2 hours ago, never ended, and no progress saved: their time was lost. Should stay near 0 since v1.13.0."
+        },
+        {
+          "type": "timeseries",
+          "title": "Sessions with no time saved, per day",
+          "id": 19,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 18,
+            "x": 6,
+            "y": 27
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "time_series",
+              "rawQuery": true,
+              "rawSql": "SELECT $__timeGroupAlias(started_at, 1d), 100 * SUM(ended_at IS NULL AND minute_focused = 0) / COUNT(id) AS \"no time saved\" FROM focused_sessions WHERE $__timeFilter(started_at) AND started_at < UTC_TIMESTAMP() - INTERVAL 2 HOUR GROUP BY 1 ORDER BY 1"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 15,
+                "lineWidth": 1,
+                "showPoints": "never",
+                "spanNulls": false,
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "min": 0,
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 5
+                  },
+                  {
+                    "color": "red",
+                    "value": 20
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "showLegend": false,
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
+        },
+        {
+          "type": "row",
+          "title": "Discord Activity",
+          "id": 20,
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 35
+          },
+          "panels": []
+        },
+        {
+          "type": "stat",
+          "title": "Call timers running now",
+          "id": 21,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 36
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT COUNT(id) AS calls FROM activity_rooms WHERE status = 'running' AND ends_at_ms > UNIX_TIMESTAMP(NOW(3)) * 1000"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          }
+        },
+        {
+          "type": "stat",
+          "title": "Calls opened",
+          "id": 22,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 36
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT COUNT(id) AS calls FROM activity_rooms WHERE $__timeFilter(created_at)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Discord Activity instances that used the timer. Calls idle for a day are deleted, so this only covers the last day or so."
+        },
+        {
+          "type": "table",
+          "title": "Pomodoro length in calls",
+          "id": 23,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "description": "The call's pomodoro duration, over the calls still kept (about a day).",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 36
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT CAST(JSON_EXTRACT(durations, '$.pomodoro') AS UNSIGNED) AS \"pomodoro (min)\", COUNT(id) AS calls FROM activity_rooms GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm"
+          }
+        }
+      ]
+    }
