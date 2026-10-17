@@ -44,11 +44,13 @@ spec:
             - |
               [[ "$READER_PASSWORD" =~ ^[A-Za-z0-9]{24,}$ ]] || { echo "password must be 24+ letters and digits"; exit 1; }
               db() { mysql --host=pomopensource-mysql --user=root pomopensource "$@"; }
-              # activity_launches comes with pomopensource v1.14.0: until the
-              # app has created it, a grant on it would fail the whole Job.
+              # Columns of activity_launches the app has created so far: it came
+              # with pomopensource v1.14.0, participants with v1.15.0. A grant
+              # on one still missing would fail the whole Job.
+              launch_columns=$(db -N -e "SELECT IFNULL(GROUP_CONCAT(column_name ORDER BY ordinal_position), '') FROM information_schema.columns WHERE table_schema = 'pomopensource' AND table_name = 'activity_launches' AND column_name IN ('id', 'kind', 'guild_id', 'channel_id', 'participants', 'created_at')")
               launches_grant=""
-              if [ "$(db -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'pomopensource' AND table_name = 'activity_launches'")" = 1 ]; then
-                launches_grant="GRANT SELECT (id, kind, guild_id, channel_id, created_at) ON pomopensource.activity_launches TO 'grafana'@'%';"
+              if [ -n "$launch_columns" ]; then
+                launches_grant="GRANT SELECT (${launch_columns}) ON pomopensource.activity_launches TO 'grafana'@'%';"
               fi
               db <<SQL
               CREATE USER IF NOT EXISTS 'grafana'@'%' IDENTIFIED BY '${READER_PASSWORD}';
@@ -59,7 +61,7 @@ spec:
               GRANT SELECT (id, status, ends_at_ms, durations) ON pomopensource.activity_rooms TO 'grafana'@'%';
               ${launches_grant}
               SQL
-              echo "grafana can read: users, focused_sessions, activity_rooms${launches_grant:+, activity_launches} (dashboard columns only)"
+              echo "grafana can read: users, focused_sessions, activity_rooms${launches_grant:+, activity_launches (${launch_columns})} (dashboard columns only)"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
