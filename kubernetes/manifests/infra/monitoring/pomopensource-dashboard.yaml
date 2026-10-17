@@ -1538,9 +1538,353 @@ data:
           "description": "In a server's voice channel, or private (DMs and group DMs)."
         },
         {
+          "type": "stat",
+          "title": "Calls with others",
+          "id": 29,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 8,
+            "x": 0,
+            "y": 48
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT 100 * SUM(participants >= 2) / NULLIF(COUNT(participants), 0) AS share FROM activity_launches WHERE $__timeFilter(created_at)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Calls where at least two accounts used the timer. The rest: someone alone with the timer. Counted since v1.15.0."
+        },
+        {
+          "type": "stat",
+          "title": "Average participants",
+          "id": 30,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 8,
+            "x": 8,
+            "y": 48
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT AVG(participants) AS participants FROM activity_launches WHERE $__timeFilter(created_at) AND participants IS NOT NULL"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "decimals": 1
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Accounts that used the timer, per call. Counted since v1.15.0."
+        },
+        {
+          "type": "stat",
+          "title": "Servers active 3+ days",
+          "id": 31,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 8,
+            "x": 16,
+            "y": 48
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT COUNT(guild_id) AS servers FROM (SELECT guild_id FROM activity_launches WHERE $__timeFilter(created_at) AND guild_id IS NOT NULL GROUP BY guild_id HAVING COUNT(DISTINCT DATE(created_at)) >= 3) AS servers"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Servers with calls on at least 3 different days (UTC) in the selected time range: those that came back."
+        },
+        {
+          "type": "barchart",
+          "title": "Participants per call",
+          "id": 32,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "description": "Calls by the number of accounts that used the timer. Counted since v1.15.0.",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 52
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT CASE WHEN participants = 1 THEN '1 (alone)' WHEN participants = 2 THEN '2' WHEN participants <= 5 THEN '3 to 5' ELSE '6 or more' END AS bucket, COUNT(id) AS calls FROM activity_launches WHERE $__timeFilter(created_at) AND participants IS NOT NULL GROUP BY bucket ORDER BY MIN(participants)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "fillOpacity": 70
+              },
+              "min": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "xField": "bucket",
+            "orientation": "vertical",
+            "showValue": "always",
+            "legend": {
+              "showLegend": false,
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
+        },
+        {
+          "type": "barchart",
+          "title": "Servers by number of calls",
+          "id": 33,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "description": "Servers by how many calls they had in the selected time range: one call and gone, or kept using it.",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 52
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT CASE WHEN calls = 1 THEN '1 call' WHEN calls <= 5 THEN '2 to 5' ELSE '6 or more' END AS bucket, COUNT(guild_id) AS servers FROM (SELECT guild_id, COUNT(id) AS calls FROM activity_launches WHERE $__timeFilter(created_at) AND guild_id IS NOT NULL GROUP BY guild_id) AS servers GROUP BY bucket ORDER BY MIN(calls)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "fillOpacity": 70
+              },
+              "min": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "xField": "bucket",
+            "orientation": "vertical",
+            "showValue": "always",
+            "legend": {
+              "showLegend": false,
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
+        },
+        {
+          "type": "barchart",
+          "title": "Servers by active days",
+          "id": 34,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "description": "Servers by the number of different days (UTC) with a call in the selected time range.",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 52
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT CASE WHEN days = 1 THEN '1 day' WHEN days = 2 THEN '2 days' WHEN days <= 6 THEN '3 to 6' ELSE '7 or more' END AS bucket, COUNT(guild_id) AS servers FROM (SELECT guild_id, COUNT(DISTINCT DATE(created_at)) AS days FROM activity_launches WHERE $__timeFilter(created_at) AND guild_id IS NOT NULL GROUP BY guild_id) AS servers GROUP BY bucket ORDER BY MIN(days)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "fillOpacity": 70
+              },
+              "min": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "xField": "bucket",
+            "orientation": "vertical",
+            "showValue": "always",
+            "legend": {
+              "showLegend": false,
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
+        },
+        {
           "type": "table",
           "title": "Most active servers",
-          "id": 29,
+          "id": 35,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1550,7 +1894,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 48
+            "y": 60
           },
           "targets": [
             {
@@ -1590,7 +1934,7 @@ data:
         {
           "type": "table",
           "title": "Pomodoro length in calls",
-          "id": 30,
+          "id": 36,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1600,7 +1944,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 48
+            "y": 60
           },
           "targets": [
             {
