@@ -1,0 +1,64 @@
+# Creates, or updates, the read-only MySQL account the pomopensource Grafana
+# dashboard reads with. It only sees the columns the dashboard needs: no
+# names, emails, passwords or notes. Privileges are revoked and granted
+# again on each run, so this list is the whole of them.
+#
+# Runs after every sync of the app. To rotate the password, re-seal both
+# pomopensource-grafana-reader (here) and the grafana-datasource-pomopensource
+# datasource (in monitoring) with the new one.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pomopensource-grafana-reader
+  namespace: pomopensource
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: grant
+          # The image the database runs, for its client.
+          image: docker.io/bitnamilegacy/mysql:8.4.3-debian-12-r0
+          env:
+            - name: MYSQL_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: pomopensource-secrets
+                  key: mysql-root-password
+            # Letters and digits only: it is quoted into the SQL below.
+            - name: READER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pomopensource-grafana-reader
+                  key: password
+          command: ["/bin/bash", "-euc"]
+          args:
+            - |
+              [[ "$READER_PASSWORD" =~ ^[A-Za-z0-9]{24,}$ ]] || { echo "password must be 24+ letters and digits"; exit 1; }
+              mysql --host=pomopensource-mysql --user=root pomopensource <<SQL
+              CREATE USER IF NOT EXISTS 'grafana'@'%' IDENTIFIED BY '${READER_PASSWORD}';
+              ALTER USER 'grafana'@'%' IDENTIFIED BY '${READER_PASSWORD}' WITH MAX_USER_CONNECTIONS 5;
+              REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'grafana'@'%';
+              GRANT SELECT (id, created_at, discord_id) ON pomopensource.users TO 'grafana'@'%';
+              GRANT SELECT (id, user_id, project_id, started_at, ended_at, minute_focused) ON pomopensource.focused_sessions TO 'grafana'@'%';
+              GRANT SELECT (id, status, ends_at_ms, durations, created_at) ON pomopensource.activity_rooms TO 'grafana'@'%';
+              SQL
+              echo "grafana can read: users, focused_sessions, activity_rooms (dashboard columns only)"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
