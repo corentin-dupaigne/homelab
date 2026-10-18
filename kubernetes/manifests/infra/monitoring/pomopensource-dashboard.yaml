@@ -1,5 +1,6 @@
-# Accounts, focus time, and Discord calls and servers of pomopensource, read from its
-# MySQL database through the read-only grafana account (see the
+# Accounts, retention, focus time, and Discord calls and servers of
+# pomopensource, read from its MySQL database through the read-only grafana
+# account (see the
 # grafana-datasource-pomopensource datasource, and the Job that creates the
 # account in kubernetes/manifests/workloads/pomopensource).
 # Picked up by the Grafana dashboard sidecar through the grafana_dashboard label.
@@ -30,6 +31,30 @@ data:
       "schemaVersion": 39,
       "templating": {
         "list": []
+      },
+      "annotations": {
+        "list": [
+          {
+            "name": "Releases",
+            "datasource": {
+              "type": "mysql",
+              "uid": "pomopensource-mysql"
+            },
+            "enable": true,
+            "iconColor": "purple",
+            "target": {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT UNIX_TIMESTAMP(at) * 1000 AS time, text FROM ( SELECT TIMESTAMP('2026-10-17 15:40:00') AS at, 'v1.13.0: a session saves its time while it runs. Before, only once a pomodoro ended: earlier focus time is undercounted.' AS text UNION ALL SELECT TIMESTAMP('2026-10-17 20:12:39'), 'v1.15.0: participants per call counted from here.') AS releases WHERE at BETWEEN FROM_UNIXTIME($__unixEpochFrom()) AND FROM_UNIXTIME($__unixEpochTo())"
+            }
+          }
+        ]
       },
       "panels": [
         {
@@ -188,7 +213,7 @@ data:
               "editorMode": "code",
               "format": "table",
               "rawQuery": true,
-              "rawSql": "SELECT COUNT(DISTINCT user_id) AS users FROM focused_sessions WHERE started_at >= UTC_DATE()"
+              "rawSql": "SELECT COUNT(DISTINCT user_id) AS users FROM focused_sessions WHERE started_at >= UTC_DATE() AND started_at >= '2026-10-08' AND started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE"
             }
           ],
           "fieldConfig": {
@@ -248,7 +273,7 @@ data:
               "editorMode": "code",
               "format": "table",
               "rawQuery": true,
-              "rawSql": "SELECT COUNT(DISTINCT user_id) AS users FROM focused_sessions WHERE started_at >= UTC_TIMESTAMP() - INTERVAL 7 DAY"
+              "rawSql": "SELECT COUNT(DISTINCT user_id) AS users FROM focused_sessions WHERE started_at >= UTC_TIMESTAMP() - INTERVAL 7 DAY AND started_at >= '2026-10-08' AND started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE"
             }
           ],
           "fieldConfig": {
@@ -307,7 +332,7 @@ data:
               "editorMode": "code",
               "format": "table",
               "rawQuery": true,
-              "rawSql": "SELECT COUNT(DISTINCT user_id) AS users FROM focused_sessions WHERE started_at >= UTC_TIMESTAMP() - INTERVAL 30 DAY"
+              "rawSql": "SELECT COUNT(DISTINCT user_id) AS users FROM focused_sessions WHERE started_at >= UTC_TIMESTAMP() - INTERVAL 30 DAY AND started_at >= '2026-10-08' AND started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE"
             }
           ],
           "fieldConfig": {
@@ -427,7 +452,7 @@ data:
               "editorMode": "code",
               "format": "time_series",
               "rawQuery": true,
-              "rawSql": "SELECT $__timeGroupAlias(started_at, 1d), COUNT(DISTINCT user_id) AS \"active users\" FROM focused_sessions WHERE $__timeFilter(started_at) GROUP BY 1 ORDER BY 1"
+              "rawSql": "SELECT $__timeGroupAlias(f.started_at, 1d), CASE WHEN DATE(u.created_at) = DATE(f.started_at) THEN 'new' ELSE 'returning' END AS metric, COUNT(DISTINCT f.user_id) AS users FROM focused_sessions f JOIN users u ON u.id = f.user_id WHERE $__timeFilter(f.started_at) AND f.started_at >= '2026-10-08' AND f.started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE GROUP BY 1, 2 ORDER BY 1"
             }
           ],
           "fieldConfig": {
@@ -438,7 +463,11 @@ data:
                 "fillOpacity": 70,
                 "lineWidth": 1,
                 "showPoints": "never",
-                "spanNulls": false
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "normal",
+                  "group": "A"
+                }
               },
               "min": 0,
               "color": {
@@ -449,14 +478,15 @@ data:
           },
           "options": {
             "legend": {
-              "showLegend": false,
+              "showLegend": true,
               "displayMode": "list",
               "placement": "bottom"
             },
             "tooltip": {
               "mode": "single"
             }
-          }
+          },
+          "description": "New: signed up that day (UTC). Returning: signed up on an earlier day."
         },
         {
           "type": "timeseries",
@@ -515,7 +545,7 @@ data:
         },
         {
           "type": "row",
-          "title": "Focus",
+          "title": "Retention",
           "id": 10,
           "collapsed": false,
           "gridPos": {
@@ -528,7 +558,7 @@ data:
         },
         {
           "type": "stat",
-          "title": "Focus time",
+          "title": "Focused on signup day",
           "id": 11,
           "datasource": {
             "type": "mysql",
@@ -550,7 +580,434 @@ data:
               "editorMode": "code",
               "format": "table",
               "rawQuery": true,
-              "rawSql": "SELECT SUM(minute_focused) / 60 AS hours FROM focused_sessions WHERE $__timeFilter(started_at)"
+              "rawSql": "SELECT 100 * SUM(CASE WHEN signup <= UTC_DATE() - INTERVAL 1 DAY THEN COALESCE(focused, 0) END) / NULLIF(SUM(signup <= UTC_DATE() - INTERVAL 1 DAY), 0) AS share FROM (SELECT u.id, DATE(u.created_at) AS signup, MAX(DATEDIFF(f.started_at, u.created_at) = 0 AND f.minute_focused > 0) AS focused, MAX(DATEDIFF(f.started_at, u.created_at) = 1) AS day1, MAX(DATEDIFF(f.started_at, u.created_at) >= 3) AS day3, MAX(DATEDIFF(f.started_at, u.created_at) >= 7) AS day7 FROM users u LEFT JOIN focused_sessions f ON f.user_id = u.id AND f.started_at >= '2026-10-08' AND f.started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE WHERE $__timeFilter(u.created_at) AND u.created_at >= '2026-10-08' GROUP BY u.id, signup) AS cohorts"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "New accounts that saved at least a minute of focus the day they signed up (UTC), today's excepted."
+        },
+        {
+          "type": "stat",
+          "title": "Back the next day",
+          "id": 12,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 6,
+            "y": 14
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT 100 * SUM(CASE WHEN signup <= UTC_DATE() - INTERVAL 2 DAY THEN COALESCE(day1, 0) END) / NULLIF(SUM(signup <= UTC_DATE() - INTERVAL 2 DAY), 0) AS share FROM (SELECT u.id, DATE(u.created_at) AS signup, MAX(DATEDIFF(f.started_at, u.created_at) = 0 AND f.minute_focused > 0) AS focused, MAX(DATEDIFF(f.started_at, u.created_at) = 1) AS day1, MAX(DATEDIFF(f.started_at, u.created_at) >= 3) AS day3, MAX(DATEDIFF(f.started_at, u.created_at) >= 7) AS day7 FROM users u LEFT JOIN focused_sessions f ON f.user_id = u.id AND f.started_at >= '2026-10-08' AND f.started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE WHERE $__timeFilter(u.created_at) AND u.created_at >= '2026-10-08' GROUP BY u.id, signup) AS cohorts"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Started a session the day after signing up. Of the accounts signed up in the selected time range whose day for it is over (UTC)."
+        },
+        {
+          "type": "stat",
+          "title": "Back after 3+ days",
+          "id": 13,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 12,
+            "y": 14
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT 100 * SUM(CASE WHEN signup <= UTC_DATE() - INTERVAL 4 DAY THEN COALESCE(day3, 0) END) / NULLIF(SUM(signup <= UTC_DATE() - INTERVAL 4 DAY), 0) AS share FROM (SELECT u.id, DATE(u.created_at) AS signup, MAX(DATEDIFF(f.started_at, u.created_at) = 0 AND f.minute_focused > 0) AS focused, MAX(DATEDIFF(f.started_at, u.created_at) = 1) AS day1, MAX(DATEDIFF(f.started_at, u.created_at) >= 3) AS day3, MAX(DATEDIFF(f.started_at, u.created_at) >= 7) AS day7 FROM users u LEFT JOIN focused_sessions f ON f.user_id = u.id AND f.started_at >= '2026-10-08' AND f.started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE WHERE $__timeFilter(u.created_at) AND u.created_at >= '2026-10-08' GROUP BY u.id, signup) AS cohorts"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Started a session 3 days or more after signing up. Of the accounts signed up in the selected time range whose day for it is over (UTC)."
+        },
+        {
+          "type": "stat",
+          "title": "Back after 7+ days",
+          "id": 14,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 18,
+            "y": 14
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT 100 * SUM(CASE WHEN signup <= UTC_DATE() - INTERVAL 8 DAY THEN COALESCE(day7, 0) END) / NULLIF(SUM(signup <= UTC_DATE() - INTERVAL 8 DAY), 0) AS share FROM (SELECT u.id, DATE(u.created_at) AS signup, MAX(DATEDIFF(f.started_at, u.created_at) = 0 AND f.minute_focused > 0) AS focused, MAX(DATEDIFF(f.started_at, u.created_at) = 1) AS day1, MAX(DATEDIFF(f.started_at, u.created_at) >= 3) AS day3, MAX(DATEDIFF(f.started_at, u.created_at) >= 7) AS day7 FROM users u LEFT JOIN focused_sessions f ON f.user_id = u.id AND f.started_at >= '2026-10-08' AND f.started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE WHERE $__timeFilter(u.created_at) AND u.created_at >= '2026-10-08' GROUP BY u.id, signup) AS cohorts"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Started a session 7 days or more after signing up. Of the accounts signed up in the selected time range whose day for it is over (UTC)."
+        },
+        {
+          "type": "table",
+          "title": "Accounts by signup day",
+          "id": 15,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "description": "Each day's new accounts (UTC), and the share that focused that day and came back. Empty until that day is over.",
+          "gridPos": {
+            "h": 10,
+            "w": 14,
+            "x": 0,
+            "y": 18
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT signup AS \"signup day\", COUNT(id) AS accounts, CASE WHEN signup <= UTC_DATE() - INTERVAL 1 DAY THEN 100 * AVG(COALESCE(focused, 0)) END AS \"focused that day\", CASE WHEN signup <= UTC_DATE() - INTERVAL 2 DAY THEN 100 * AVG(COALESCE(day1, 0)) END AS \"next day\", CASE WHEN signup <= UTC_DATE() - INTERVAL 4 DAY THEN 100 * AVG(COALESCE(day3, 0)) END AS \"3+ days\", CASE WHEN signup <= UTC_DATE() - INTERVAL 8 DAY THEN 100 * AVG(COALESCE(day7, 0)) END AS \"7+ days\" FROM (SELECT u.id, DATE(u.created_at) AS signup, MAX(DATEDIFF(f.started_at, u.created_at) = 0 AND f.minute_focused > 0) AS focused, MAX(DATEDIFF(f.started_at, u.created_at) = 1) AS day1, MAX(DATEDIFF(f.started_at, u.created_at) >= 3) AS day3, MAX(DATEDIFF(f.started_at, u.created_at) >= 7) AS day7 FROM users u LEFT JOIN focused_sessions f ON f.user_id = u.id AND f.started_at >= '2026-10-08' AND f.started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE WHERE $__timeFilter(u.created_at) AND u.created_at >= '2026-10-08' GROUP BY u.id, signup) AS cohorts GROUP BY signup ORDER BY signup DESC"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "^(focused that day|next day|3\\+ days|7\\+ days)$"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "percent"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 0
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-background",
+                      "mode": "basic"
+                    }
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "continuous-RdYlGr"
+                    }
+                  },
+                  {
+                    "id": "min",
+                    "value": 0
+                  },
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "special",
+                        "options": {
+                          "match": "null",
+                          "result": {
+                            "text": "",
+                            "color": "transparent"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "signup day"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "time: YYYY-MM-DD"
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 110
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "accounts"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 80
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm"
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Focused on signup day, per day",
+          "id": 16,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 10,
+            "x": 14,
+            "y": 18
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "time_series",
+              "rawQuery": true,
+              "rawSql": "SELECT $__timeGroupAlias(u.created_at, 1d), 100 * AVG(COALESCE(c.focused, 0)) AS \"focused on signup day\" FROM users u JOIN (SELECT u.id, DATE(u.created_at) AS signup, MAX(DATEDIFF(f.started_at, u.created_at) = 0 AND f.minute_focused > 0) AS focused, MAX(DATEDIFF(f.started_at, u.created_at) = 1) AS day1, MAX(DATEDIFF(f.started_at, u.created_at) >= 3) AS day3, MAX(DATEDIFF(f.started_at, u.created_at) >= 7) AS day7 FROM users u LEFT JOIN focused_sessions f ON f.user_id = u.id AND f.started_at >= '2026-10-08' AND f.started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE WHERE $__timeFilter(u.created_at) AND u.created_at >= '2026-10-08' GROUP BY u.id, signup) AS c ON c.id = u.id WHERE c.signup <= UTC_DATE() - INTERVAL 1 DAY GROUP BY 1 ORDER BY 1"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 15,
+                "lineWidth": 1,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "min": 0,
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "showLegend": false,
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "description": "Share of each day's new accounts that saved at least a minute of focus that day. The rest signed up and left."
+        },
+        {
+          "type": "row",
+          "title": "Focus",
+          "id": 17,
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 28
+          },
+          "panels": []
+        },
+        {
+          "type": "stat",
+          "title": "Focus time",
+          "id": 18,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 0,
+            "y": 29
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT SUM(minute_focused) / 60 AS hours FROM focused_sessions WHERE $__timeFilter(started_at) AND started_at >= '2026-10-08' AND started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE"
             }
           ],
           "fieldConfig": {
@@ -590,7 +1047,7 @@ data:
         {
           "type": "stat",
           "title": "Sessions",
-          "id": 12,
+          "id": 19,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -599,7 +1056,7 @@ data:
             "h": 4,
             "w": 6,
             "x": 6,
-            "y": 14
+            "y": 29
           },
           "targets": [
             {
@@ -611,7 +1068,7 @@ data:
               "editorMode": "code",
               "format": "table",
               "rawQuery": true,
-              "rawSql": "SELECT COUNT(id) AS sessions FROM focused_sessions WHERE $__timeFilter(started_at)"
+              "rawSql": "SELECT COUNT(id) AS sessions FROM focused_sessions WHERE $__timeFilter(started_at) AND started_at >= '2026-10-08' AND started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE"
             }
           ],
           "fieldConfig": {
@@ -649,7 +1106,7 @@ data:
         {
           "type": "stat",
           "title": "Average session",
-          "id": 13,
+          "id": 20,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -658,7 +1115,7 @@ data:
             "h": 4,
             "w": 6,
             "x": 12,
-            "y": 14
+            "y": 29
           },
           "targets": [
             {
@@ -670,7 +1127,7 @@ data:
               "editorMode": "code",
               "format": "table",
               "rawQuery": true,
-              "rawSql": "SELECT AVG(minute_focused) AS minutes FROM focused_sessions WHERE $__timeFilter(started_at) AND minute_focused > 0"
+              "rawSql": "SELECT AVG(minute_focused) AS minutes FROM focused_sessions WHERE $__timeFilter(started_at) AND started_at >= '2026-10-08' AND started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE AND minute_focused > 0"
             }
           ],
           "fieldConfig": {
@@ -710,7 +1167,7 @@ data:
         {
           "type": "stat",
           "title": "Focus time on a project",
-          "id": 14,
+          "id": 21,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -719,7 +1176,7 @@ data:
             "h": 4,
             "w": 6,
             "x": 18,
-            "y": 14
+            "y": 29
           },
           "targets": [
             {
@@ -731,7 +1188,7 @@ data:
               "editorMode": "code",
               "format": "table",
               "rawQuery": true,
-              "rawSql": "SELECT 100 * SUM(CASE WHEN project_id IS NULL THEN 0 ELSE minute_focused END) / NULLIF(SUM(minute_focused), 0) AS share FROM focused_sessions WHERE $__timeFilter(started_at)"
+              "rawSql": "SELECT 100 * SUM(CASE WHEN project_id IS NULL THEN 0 ELSE minute_focused END) / NULLIF(SUM(minute_focused), 0) AS share FROM focused_sessions WHERE $__timeFilter(started_at) AND started_at >= '2026-10-08' AND started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE"
             }
           ],
           "fieldConfig": {
@@ -771,7 +1228,7 @@ data:
         {
           "type": "timeseries",
           "title": "Focus hours per day",
-          "id": 15,
+          "id": 22,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -780,7 +1237,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 18
+            "y": 33
           },
           "targets": [
             {
@@ -792,7 +1249,7 @@ data:
               "editorMode": "code",
               "format": "time_series",
               "rawQuery": true,
-              "rawSql": "SELECT $__timeGroupAlias(started_at, 1d), SUM(minute_focused) / 60 AS hours FROM focused_sessions WHERE $__timeFilter(started_at) GROUP BY 1 ORDER BY 1"
+              "rawSql": "SELECT $__timeGroupAlias(started_at, 1d), SUM(minute_focused) / 60 AS hours FROM focused_sessions WHERE $__timeFilter(started_at) AND started_at >= '2026-10-08' AND started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE GROUP BY 1 ORDER BY 1"
             }
           ],
           "fieldConfig": {
@@ -826,7 +1283,7 @@ data:
         {
           "type": "barchart",
           "title": "Focus by hour of day (UTC)",
-          "id": 16,
+          "id": 23,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -835,7 +1292,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 18
+            "y": 33
           },
           "targets": [
             {
@@ -847,7 +1304,7 @@ data:
               "editorMode": "code",
               "format": "table",
               "rawQuery": true,
-              "rawSql": "SELECT LPAD(HOUR(started_at), 2, '0') AS hour, SUM(minute_focused) / 60 AS hours FROM focused_sessions WHERE $__timeFilter(started_at) GROUP BY 1 ORDER BY 1"
+              "rawSql": "SELECT LPAD(HOUR(started_at), 2, '0') AS hour, SUM(minute_focused) / 60 AS hours FROM focused_sessions WHERE $__timeFilter(started_at) AND started_at >= '2026-10-08' AND started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE GROUP BY 1 ORDER BY 1"
             }
           ],
           "fieldConfig": {
@@ -895,20 +1352,20 @@ data:
         {
           "type": "row",
           "title": "Health",
-          "id": 17,
+          "id": 24,
           "collapsed": false,
           "gridPos": {
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 26
+            "y": 41
           },
           "panels": []
         },
         {
           "type": "stat",
           "title": "Sessions with no time saved",
-          "id": 18,
+          "id": 25,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -917,7 +1374,7 @@ data:
             "h": 8,
             "w": 6,
             "x": 0,
-            "y": 27
+            "y": 42
           },
           "targets": [
             {
@@ -929,7 +1386,7 @@ data:
               "editorMode": "code",
               "format": "table",
               "rawQuery": true,
-              "rawSql": "SELECT 100 * SUM(ended_at IS NULL AND minute_focused = 0) / NULLIF(COUNT(id), 0) AS share FROM focused_sessions WHERE $__timeFilter(started_at) AND started_at < UTC_TIMESTAMP() - INTERVAL 2 HOUR"
+              "rawSql": "SELECT 100 * SUM(ended_at IS NULL AND minute_focused = 0) / NULLIF(COUNT(id), 0) AS share FROM focused_sessions WHERE $__timeFilter(started_at) AND started_at >= '2026-10-08' AND started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE AND started_at < UTC_TIMESTAMP() - INTERVAL 2 HOUR"
             }
           ],
           "fieldConfig": {
@@ -977,7 +1434,7 @@ data:
         {
           "type": "timeseries",
           "title": "Sessions with no time saved, per day",
-          "id": 19,
+          "id": 26,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -986,7 +1443,7 @@ data:
             "h": 8,
             "w": 18,
             "x": 6,
-            "y": 27
+            "y": 42
           },
           "targets": [
             {
@@ -998,7 +1455,7 @@ data:
               "editorMode": "code",
               "format": "time_series",
               "rawQuery": true,
-              "rawSql": "SELECT $__timeGroupAlias(started_at, 1d), 100 * SUM(ended_at IS NULL AND minute_focused = 0) / COUNT(id) AS \"no time saved\" FROM focused_sessions WHERE $__timeFilter(started_at) AND started_at < UTC_TIMESTAMP() - INTERVAL 2 HOUR GROUP BY 1 ORDER BY 1"
+              "rawSql": "SELECT $__timeGroupAlias(started_at, 1d), 100 * SUM(ended_at IS NULL AND minute_focused = 0) / COUNT(id) AS \"no time saved\" FROM focused_sessions WHERE $__timeFilter(started_at) AND started_at >= '2026-10-08' AND started_at <= UTC_TIMESTAMP() + INTERVAL 5 MINUTE AND started_at < UTC_TIMESTAMP() - INTERVAL 2 HOUR GROUP BY 1 ORDER BY 1"
             }
           ],
           "fieldConfig": {
@@ -1052,20 +1509,20 @@ data:
         {
           "type": "row",
           "title": "Discord Activity",
-          "id": 20,
+          "id": 27,
           "collapsed": false,
           "gridPos": {
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 35
+            "y": 50
           },
           "panels": []
         },
         {
           "type": "stat",
           "title": "Call timers running now",
-          "id": 21,
+          "id": 28,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1074,7 +1531,7 @@ data:
             "h": 4,
             "w": 4,
             "x": 0,
-            "y": 36
+            "y": 51
           },
           "targets": [
             {
@@ -1124,7 +1581,7 @@ data:
         {
           "type": "stat",
           "title": "Calls",
-          "id": 22,
+          "id": 29,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1133,7 +1590,7 @@ data:
             "h": 4,
             "w": 4,
             "x": 4,
-            "y": 36
+            "y": 51
           },
           "targets": [
             {
@@ -1184,7 +1641,7 @@ data:
         {
           "type": "stat",
           "title": "Servers",
-          "id": 23,
+          "id": 30,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1193,7 +1650,7 @@ data:
             "h": 4,
             "w": 4,
             "x": 8,
-            "y": 36
+            "y": 51
           },
           "targets": [
             {
@@ -1244,7 +1701,7 @@ data:
         {
           "type": "stat",
           "title": "New servers",
-          "id": 24,
+          "id": 31,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1253,7 +1710,7 @@ data:
             "h": 4,
             "w": 4,
             "x": 12,
-            "y": 36
+            "y": 51
           },
           "targets": [
             {
@@ -1304,7 +1761,7 @@ data:
         {
           "type": "stat",
           "title": "Voice channels",
-          "id": 25,
+          "id": 32,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1313,7 +1770,7 @@ data:
             "h": 4,
             "w": 4,
             "x": 16,
-            "y": 36
+            "y": 51
           },
           "targets": [
             {
@@ -1364,7 +1821,7 @@ data:
         {
           "type": "stat",
           "title": "Calls in a server",
-          "id": 26,
+          "id": 33,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1373,7 +1830,7 @@ data:
             "h": 4,
             "w": 4,
             "x": 20,
-            "y": 36
+            "y": 51
           },
           "targets": [
             {
@@ -1425,7 +1882,7 @@ data:
         {
           "type": "timeseries",
           "title": "Servers with a call per day",
-          "id": 27,
+          "id": 34,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1434,7 +1891,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 40
+            "y": 55
           },
           "targets": [
             {
@@ -1480,7 +1937,7 @@ data:
         {
           "type": "timeseries",
           "title": "Calls per day",
-          "id": 28,
+          "id": 35,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1489,7 +1946,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 40
+            "y": 55
           },
           "targets": [
             {
@@ -1540,7 +1997,7 @@ data:
         {
           "type": "stat",
           "title": "Calls with others",
-          "id": 29,
+          "id": 36,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1549,7 +2006,7 @@ data:
             "h": 4,
             "w": 8,
             "x": 0,
-            "y": 48
+            "y": 63
           },
           "targets": [
             {
@@ -1601,7 +2058,7 @@ data:
         {
           "type": "stat",
           "title": "Average participants",
-          "id": 30,
+          "id": 37,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1610,7 +2067,7 @@ data:
             "h": 4,
             "w": 8,
             "x": 8,
-            "y": 48
+            "y": 63
           },
           "targets": [
             {
@@ -1662,7 +2119,7 @@ data:
         {
           "type": "stat",
           "title": "Servers active 3+ days",
-          "id": 31,
+          "id": 38,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1671,7 +2128,7 @@ data:
             "h": 4,
             "w": 8,
             "x": 16,
-            "y": 48
+            "y": 63
           },
           "targets": [
             {
@@ -1722,7 +2179,7 @@ data:
         {
           "type": "barchart",
           "title": "Participants per call",
-          "id": 32,
+          "id": 39,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1732,7 +2189,7 @@ data:
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 52
+            "y": 67
           },
           "targets": [
             {
@@ -1776,7 +2233,7 @@ data:
         {
           "type": "barchart",
           "title": "Servers by number of calls",
-          "id": 33,
+          "id": 40,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1786,7 +2243,7 @@ data:
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 52
+            "y": 67
           },
           "targets": [
             {
@@ -1830,7 +2287,7 @@ data:
         {
           "type": "barchart",
           "title": "Servers by active days",
-          "id": 34,
+          "id": 41,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1840,7 +2297,7 @@ data:
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 52
+            "y": 67
           },
           "targets": [
             {
@@ -1884,7 +2341,7 @@ data:
         {
           "type": "table",
           "title": "Most active servers",
-          "id": 35,
+          "id": 42,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1894,7 +2351,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 60
+            "y": 75
           },
           "targets": [
             {
@@ -1934,7 +2391,7 @@ data:
         {
           "type": "table",
           "title": "Pomodoro length in calls",
-          "id": 36,
+          "id": 43,
           "datasource": {
             "type": "mysql",
             "uid": "pomopensource-mysql"
@@ -1944,7 +2401,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 60
+            "y": 75
           },
           "targets": [
             {
