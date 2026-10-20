@@ -1,0 +1,26 @@
+---
+# Nextcloud's database, run by the CloudNativePG operator. With no secret given,
+# the operator generates the owner's credentials into nextcloud-db-app (keys
+# username, password, host, dbname, ...), which is what the chart reads.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: nextcloud-db
+  namespace: nextcloud
+spec:
+  # One node, so a replica would share the primary's disk and fail with it.
+  instances: 1
+  bootstrap:
+    initdb:
+      database: nextcloud
+      owner: nextcloud
+  # No storageClass: k3s's local-path provisioner is the default class, so this
+  # lives on the node's disk alongside the Nextcloud files.
+  storage:
+    size: 8Gi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
