@@ -31,6 +31,8 @@ spec:
               existingSecret: pomopensource-secrets
             image:
               repository: bitnamilegacy/mysql
+            primary:
+              extraFlags: "--binlog-expire-logs-seconds=259200"
     - repoURL: https://github.com/corentin-dupaigne/homelab
       targetRevision: main
       path: kubernetes/manifests/workloads/pomopensource
