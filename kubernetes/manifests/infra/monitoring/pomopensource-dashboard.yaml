@@ -1,4 +1,4 @@
-# Accounts, retention, focus time, and Discord calls and servers of
+# Accounts, retention, focus time, Discord calls and servers, and interface use of
 # pomopensource, read from its MySQL database through the read-only grafana
 # account (see the
 # grafana-datasource-pomopensource datasource, and the Job that creates the
@@ -16,7 +16,7 @@ data:
     {
       "title": "pomopensource",
       "uid": "pomopensource",
-      "description": "Accounts, focus time, and Discord calls and servers, read from the app's database",
+      "description": "Accounts, focus time, Discord calls and servers, and interface use, read from the app's database",
       "tags": [
         "pomopensource"
       ],
@@ -2424,6 +2424,310 @@ data:
             "showHeader": true,
             "cellHeight": "sm"
           }
+        },
+        {
+          "type": "row",
+          "title": "Interface",
+          "id": 44,
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 83
+          },
+          "panels": []
+        },
+        {
+          "type": "table",
+          "title": "Click rate by element",
+          "id": 45,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "description": "Times each part of the interface was opened, per opening of the app (app_open), over the time range. Counts only: nothing says who clicked. Recorded from pomopensource v1.17.0.",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 84
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT element, SUM(CASE WHEN context = 'activity' THEN clicks ELSE 0 END) / NULLIF((SELECT SUM(clicks) FROM click_counts WHERE element = 'app_open' AND context = 'activity' AND $__timeFilter(day)), 0) AS \"Activity\", SUM(CASE WHEN context = 'website' THEN clicks ELSE 0 END) / NULLIF((SELECT SUM(clicks) FROM click_counts WHERE element = 'app_open' AND context = 'website' AND $__timeFilter(day)), 0) AS \"website\", SUM(clicks) AS clicks FROM click_counts WHERE $__timeFilter(day) AND element <> 'app_open' GROUP BY element ORDER BY clicks DESC"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "Activity|website"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "percentunit"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm"
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Click rate per day",
+          "id": 46,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 84
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "time_series",
+              "rawQuery": true,
+              "rawSql": "SELECT $__timeGroupAlias(c.day, 1d), c.element AS metric, SUM(c.clicks) / MAX(o.opens) AS rate FROM click_counts c JOIN (SELECT day, SUM(clicks) AS opens FROM click_counts WHERE element = 'app_open' GROUP BY day) o ON o.day = c.day WHERE $__timeFilter(c.day) AND c.element <> 'app_open' GROUP BY 1, 2 ORDER BY 1"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 2,
+                "fillOpacity": 0,
+                "showPoints": "always",
+                "spanNulls": false
+              },
+              "min": 0,
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "showLegend": true,
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "description": "Each element's clicks per opening of the app that day, Activity and website together."
+        },
+        {
+          "type": "timeseries",
+          "title": "App opens per day",
+          "id": 47,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 92
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "time_series",
+              "rawQuery": true,
+              "rawSql": "SELECT $__timeGroupAlias(day, 1d), context AS metric, SUM(clicks) AS opens FROM click_counts WHERE element = 'app_open' AND $__timeFilter(day) GROUP BY 1, 2 ORDER BY 1"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "bars",
+                "fillOpacity": 70,
+                "lineWidth": 1,
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "normal",
+                  "group": "A"
+                }
+              },
+              "min": 0,
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "showLegend": true,
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "description": "Each load of the app, in the Activity or on the website: what click rates are per."
+        },
+        {
+          "type": "stat",
+          "title": "Accounts that opened the leaderboard",
+          "id": 48,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 12,
+            "y": 92
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT COUNT(id) AS accounts FROM users WHERE leaderboard_seen_at IS NOT NULL"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Accounts that opened a server leaderboard at least once, ever."
+        },
+        {
+          "type": "stat",
+          "title": "Leaderboard reach",
+          "id": 49,
+          "datasource": {
+            "type": "mysql",
+            "uid": "pomopensource-mysql"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 18,
+            "y": 92
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "mysql",
+                "uid": "pomopensource-mysql"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "SELECT COUNT(DISTINCT CASE WHEN u.leaderboard_seen_at IS NOT NULL THEN u.id END) / NULLIF(COUNT(DISTINCT u.id), 0) AS share FROM users u JOIN focused_sessions f ON f.user_id = u.id WHERE u.discord_id IS NOT NULL AND f.guild_id IS NOT NULL AND f.started_at >= UTC_TIMESTAMP() - INTERVAL 7 DAY"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center"
+          },
+          "description": "Of the Discord accounts that focused in a server's call in the last 7 days (where the leaderboard shows), the share that ever opened it."
         }
       ]
     }
