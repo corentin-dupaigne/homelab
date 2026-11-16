@@ -52,16 +52,24 @@ spec:
               if [ -n "$launch_columns" ]; then
                 launches_grant="GRANT SELECT (${launch_columns}) ON pomopensource.activity_launches TO 'grafana'@'%';"
               fi
+              # Interface use (click_counts) and who opened a leaderboard came with
+              # pomopensource v1.17.0: granted once they exist.
+              click_grant=""
+              if [ -n "$(db -N -e "SELECT 1 FROM information_schema.tables WHERE table_schema = 'pomopensource' AND table_name = 'click_counts'")" ]; then
+                click_grant="GRANT SELECT (day, context, element, clicks) ON pomopensource.click_counts TO 'grafana'@'%';"
+              fi
+              user_columns=$(db -N -e "SELECT GROUP_CONCAT(column_name ORDER BY ordinal_position) FROM information_schema.columns WHERE table_schema = 'pomopensource' AND table_name = 'users' AND column_name IN ('id', 'created_at', 'discord_id', 'leaderboard_seen_at')")
               db <<SQL
               CREATE USER IF NOT EXISTS 'grafana'@'%' IDENTIFIED BY '${READER_PASSWORD}';
               ALTER USER 'grafana'@'%' IDENTIFIED BY '${READER_PASSWORD}' WITH MAX_USER_CONNECTIONS 5;
               REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'grafana'@'%';
-              GRANT SELECT (id, created_at, discord_id) ON pomopensource.users TO 'grafana'@'%';
-              GRANT SELECT (id, user_id, project_id, started_at, ended_at, minute_focused) ON pomopensource.focused_sessions TO 'grafana'@'%';
+              GRANT SELECT (${user_columns}) ON pomopensource.users TO 'grafana'@'%';
+              GRANT SELECT (id, user_id, project_id, started_at, ended_at, minute_focused, guild_id) ON pomopensource.focused_sessions TO 'grafana'@'%';
               GRANT SELECT (id, status, ends_at_ms, durations) ON pomopensource.activity_rooms TO 'grafana'@'%';
               ${launches_grant}
+              ${click_grant}
               SQL
-              echo "grafana can read: users, focused_sessions, activity_rooms${launches_grant:+, activity_launches (${launch_columns})} (dashboard columns only)"
+              echo "grafana can read: users (${user_columns}), focused_sessions, activity_rooms${launches_grant:+, activity_launches (${launch_columns})}${click_grant:+, click_counts} (dashboard columns only)"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
